@@ -1,19 +1,22 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
-// Contextos (Están en src/context/)
+// Contextos
 import { AppProvider } from "./context/AppContext";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 
-// Protegida (Está en src/components/shared/)
+// Protegida
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 
-// Páginas (Están en src/pages/)
+// Páginas
 import StorePage from "./pages/StorePage";
 import AdminPage from "./pages/AdminPage";
 import LoginPage from "./pages/LoginPage";
 import QuestionsPage from "./pages/QuestionsPage";
+
+// IMPORTACIÓN DEL BOTÓN DE INSTALACIÓN
+import InstallButton from "./InstallButton";
 
 export default function App() {
   return (
@@ -49,6 +52,10 @@ export default function App() {
               />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+
+            {/* AQUÍ SE MUESTRA EL BOTÓN SI LA APP NO ESTÁ INSTALADA */}
+            <InstallButton />
+            
           </CartProvider>
         </AppProvider>
       </AuthProvider>
