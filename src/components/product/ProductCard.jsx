@@ -36,14 +36,26 @@ export default function ProductCard({ product, onClick, rank }) {
     baseDiscountPerc = extraDiscountPerc; // Si solo hay extra, se vuelve el principal
   }
 
-  const isFlashOffer = product.offerEndsAt && product.offerEndsAt > Date.now();
+  // 🌟 DETECTIVE DE OFERTAS (Encuentra el tiempo sin importar cómo lo guardó el Admin) 🌟
+  let endTime = product.parsedOfferEndsAt || 0;
+  if (!endTime) {
+    if (product.offerEndsAt) {
+      endTime = product.offerEndsAt?.toMillis ? product.offerEndsAt.toMillis() : new Date(product.offerEndsAt).getTime();
+      // Si el admin puso solo "24" en lugar de una fecha
+      if (endTime < 100000) endTime = (product.createdAtMs || Date.now()) + (endTime * 60 * 60 * 1000);
+    } else if (product.horas || product.duracion || product.hours) {
+      endTime = (product.createdAtMs || Date.now()) + (Number(product.horas || product.duracion || product.hours) * 60 * 60 * 1000);
+    }
+  }
+
+  const isFlashOffer = endTime > Date.now();
   const hasDiscount = (displayCrossedPrice > finalPrice) || isFlashOffer;
 
   // RELOJ EN VIVO
   useEffect(() => {
-    if (!product.offerEndsAt) return;
+    if (!isFlashOffer || !endTime) return;
     const interval = setInterval(() => {
-      const distance = product.offerEndsAt - Date.now();
+      const distance = endTime - Date.now();
       if (distance <= 0) {
         clearInterval(interval);
         setTimeLeft(""); 
@@ -55,7 +67,7 @@ export default function ProductCard({ product, onClick, rank }) {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [product.offerEndsAt]);
+  }, [endTime, isFlashOffer]);
 
   // 🌟 TRUCO MÁGICO: Clonamos el producto con los precios matemáticos 
   // para que al tocarlo, el carrito cobre el precio con el descuento extra.

@@ -39,6 +39,7 @@ export default function ProductModal({ product, onClose }) {
     discountPercentage = Math.round(((oldPrice - currentPrice) / oldPrice) * 100);
   }
 
+  // Sincronizar likes en vivo
   useEffect(() => {
     const productRef = doc(db, "products", product.id);
     const unsubscribe = onSnapshot(productRef, (docSnap) => {
@@ -50,21 +51,40 @@ export default function ProductModal({ product, onClose }) {
     return () => unsubscribe();
   }, [product.id]);
 
+  // 🌟 MAGIA: Lógica de doble acción (Poner y Quitar Corazón) 🌟
   const handleLike = async () => {
-    if (hasLiked || isLiking) return;
+    if (isLiking) return;
     setIsLiking(true);
-    setHasLiked(true);
-    setLikesCount((prev) => prev + 1);
 
     const likedProducts = JSON.parse(localStorage.getItem("userLikes") || "{}");
-    likedProducts[product.id] = true;
-    localStorage.setItem("userLikes", JSON.stringify(likedProducts));
+    const productRef = doc(db, "products", product.id);
 
-    try {
-      await updateDoc(doc(db, "products", product.id), { likes: increment(1) });
-    } catch (error) {
-      await setDoc(doc(db, "products", product.id), { likes: 1 }, { merge: true });
+    if (hasLiked) {
+      // QUITAR EL CORAZÓN
+      setHasLiked(false);
+      setLikesCount((prev) => Math.max(0, prev - 1));
+      delete likedProducts[product.id]; // Lo borramos del celular
+      localStorage.setItem("userLikes", JSON.stringify(likedProducts));
+
+      try {
+        await updateDoc(productRef, { likes: increment(-1) });
+      } catch (error) {
+        console.error("Error al quitar like", error);
+      }
+    } else {
+      // PONER EL CORAZÓN
+      setHasLiked(true);
+      setLikesCount((prev) => prev + 1);
+      likedProducts[product.id] = true; // Lo guardamos en el celular
+      localStorage.setItem("userLikes", JSON.stringify(likedProducts));
+
+      try {
+        await updateDoc(productRef, { likes: increment(1) });
+      } catch (error) {
+        await setDoc(productRef, { likes: 1 }, { merge: true });
+      }
     }
+    
     setIsLiking(false);
   };
 
@@ -74,6 +94,15 @@ export default function ProductModal({ product, onClose }) {
     addItem(product, selectedVariant, quantity);
     toast.success("¡Excelente elección! 🛍️");
     onClose();
+  };
+
+  // 🌟 LÓGICA DEL ZOOM MAGNÉTICO 🌟
+  const handleMouseMove = (e) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    e.currentTarget.style.setProperty('--x', `${x}%`);
+    e.currentTarget.style.setProperty('--y', `${y}%`);
   };
 
   const stockPercentage = Math.min((availableStock / (hasVariants ? 50 : 100)) * 100, 100);
@@ -88,44 +117,67 @@ export default function ProductModal({ product, onClose }) {
         
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/10 backdrop-blur-md flex items-center justify-center text-gray-800 hover:bg-black/20 active:scale-90 transition-all text-xl font-bold"
+          className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/50 backdrop-blur-xl flex items-center justify-center text-gray-900 shadow-xl border border-white/60 hover:bg-white active:scale-90 transition-all text-xl font-bold"
         >
           ✕
         </button>
 
         <div className="flex-1 overflow-y-auto pb-6">
-          <div className="relative aspect-square bg-gray-50 mx-4 mt-4 rounded-[2rem] overflow-hidden shadow-inner group">
-            {/* BADGE DE OFERTA EN GRANDE */}
-            {hasDiscount && discountPercentage > 0 && (
-              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/20 shadow-2xl">
-                <span className="text-lg animate-bounce">{isFlashOffer ? "⚡" : "🔥"}</span>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-white leading-none">OFERTA TOP</span>
-                  <span className="text-[14px] font-black text-orange-400 leading-none">-{discountPercentage}%</span>
+          
+          {/* 🌟 CONTENEDOR DE LA IMAGEN CON ZOOM 🌟 */}
+          <div className="relative mx-4 mt-4">
+            <div 
+              className="relative aspect-[4/5] bg-gray-50 rounded-[2rem] overflow-hidden shadow-inner group cursor-crosshair touch-pan-y"
+              onMouseMove={handleMouseMove}
+              onTouchMove={(e) => {
+                const touch = e.touches[0];
+                const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+                const x = ((touch.clientX - left) / width) * 100;
+                const y = ((touch.clientY - top) / height) * 100;
+                e.currentTarget.style.setProperty('--x', `${x}%`);
+                e.currentTarget.style.setProperty('--y', `${y}%`);
+              }}
+            >
+              {/* BADGE DE OFERTA EN GRANDE */}
+              {hasDiscount && discountPercentage > 0 && (
+                <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/20 shadow-2xl pointer-events-none">
+                  <span className="text-lg animate-bounce">{isFlashOffer ? "⚡" : "🔥"}</span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-white leading-none">OFERTA TOP</span>
+                    <span className="text-[14px] font-black text-orange-400 leading-none">-{discountPercentage}%</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {product.images?.length > 0 ? (
-              <img src={product.images[activeImage]} alt={product.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-6xl opacity-50">✨</div>
-            )}
+              {product.images?.length > 0 ? (
+                <img 
+                  src={product.images[activeImage]} 
+                  alt={product.name} 
+                  className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[2] sm:group-hover:scale-[2.5] active:scale-[2] origin-[var(--x,50%)_var(--y,50%)]" 
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-6xl opacity-50">✨</div>
+              )}
+            </div>
 
+            {/* 🌟 GALERÍA DE MINIATURAS (THUMBNAILS) VIP 🌟 */}
             {product.images?.length > 1 && (
-              <>
-                <button onClick={() => setActiveImage((i) => (i - 1 + product.images.length) % product.images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg active:scale-95">‹</button>
-                <button onClick={() => setActiveImage((i) => (i + 1) % product.images.length)} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg active:scale-95">›</button>
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
-                  {product.images.map((_, i) => (
-                    <button key={i} onClick={() => setActiveImage(i)} className={`h-1.5 rounded-full transition-all duration-300 ${i === activeImage ? "w-6 bg-white shadow-md" : "w-1.5 bg-white/50"}`} />
-                  ))}
-                </div>
-              </>
+              <div className="flex gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide px-1">
+                {product.images.map((img, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setActiveImage(i)} 
+                    className={`relative w-16 h-20 rounded-xl overflow-hidden flex-shrink-0 transition-all duration-300 border-2 ${i === activeImage ? "border-pink-500 shadow-lg scale-105" : "border-transparent opacity-60 hover:opacity-100"}`}
+                  >
+                    <img src={img} className="w-full h-full object-cover" alt={`Vista ${i + 1}`} />
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
-          <div className="px-6 mt-6 space-y-6">
+          {/* INFORMACIÓN DEL PRODUCTO */}
+          <div className="px-6 mt-5 space-y-6">
             <div className="flex justify-between items-start gap-4">
               <div>
                 <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-tight mb-2 uppercase">
@@ -133,7 +185,7 @@ export default function ProductModal({ product, onClose }) {
                 </h2>
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-3">
-                    <span className={`text-3xl font-black ${hasDiscount ? "text-red-600" : "text-pink-600"}`}>
+                    <span className={`text-3xl font-black ${hasDiscount ? "text-red-600" : "text-gray-950"}`}>
                       ${product.price}
                     </span>
                     {oldPrice > 0 && (
@@ -148,8 +200,10 @@ export default function ProductModal({ product, onClose }) {
                 </div>
               </div>
 
+              {/* 🌟 BOTÓN DE CORAZÓN CON EFECTO DE QUITAR/PONER 🌟 */}
               <button
                 onClick={handleLike}
+                disabled={isLiking}
                 className={`flex flex-col items-center justify-center min-w-[60px] p-3 rounded-2xl transition-all duration-500 shadow-sm ${hasLiked ? "bg-pink-50 border border-pink-100" : "bg-white border border-gray-100 active:scale-90"}`}
               >
                 <span className={`text-2xl transition-all duration-500 ${hasLiked ? "text-pink-500 scale-110 drop-shadow-md" : "text-gray-300 grayscale"}`}>
@@ -177,7 +231,7 @@ export default function ProductModal({ product, onClose }) {
                       key={v.id}
                       onClick={() => { setSelectedVariant(v); setQuantity(1); }}
                       disabled={v.stock === 0}
-                      className={`px-4 py-2 rounded-xl transition-all flex flex-col items-center border min-w-[70px] ${selectedVariant === v ? "bg-black text-white border-black shadow-lg scale-105" : "bg-white text-gray-600 border-gray-200 shadow-sm hover:bg-gray-100"} ${v.stock === 0 ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
+                      className={`px-4 py-2 rounded-xl transition-all flex flex-col items-center border min-w-[70px] ${selectedVariant === v ? "bg-gray-950 text-white border-gray-950 shadow-lg scale-105" : "bg-white text-gray-600 border-gray-200 shadow-sm hover:bg-gray-100"} ${v.stock === 0 ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
                     >
                       <span className="text-base font-black uppercase">{v.label}</span>
                       <span className={`text-[10px] font-medium mt-0.5 ${selectedVariant === v ? "text-gray-300" : "text-gray-400"}`}>
