@@ -233,4 +233,4 @@ export default function ProductModal({ product, onClose }) {
     </div>
   );
 }
-// cambio de prueba
+// cambio de pruebagit add .
