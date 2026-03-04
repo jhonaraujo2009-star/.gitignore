@@ -26,6 +26,19 @@ export default function ProductModal({ product, onClose }) {
     ? selectedVariant?.stock ?? 0
     : product.totalStock ?? 0;
 
+  // Lógica de Oferta
+  const oldPrice = Number(product.oldPrice) || 0;
+  const currentPrice = Number(product.price) || 0;
+  const isFlashOffer = product.offerEndsAt && product.offerEndsAt > Date.now();
+  const hasDiscount = (oldPrice > currentPrice) || isFlashOffer;
+  
+  let discountPercentage = 0;
+  if (isFlashOffer && product.offerDiscount) {
+    discountPercentage = Number(product.offerDiscount);
+  } else if (oldPrice > currentPrice) {
+    discountPercentage = Math.round(((oldPrice - currentPrice) / oldPrice) * 100);
+  }
+
   useEffect(() => {
     const productRef = doc(db, "products", product.id);
     const unsubscribe = onSnapshot(productRef, (docSnap) => {
@@ -39,7 +52,6 @@ export default function ProductModal({ product, onClose }) {
 
   const handleLike = async () => {
     if (hasLiked || isLiking) return;
-
     setIsLiking(true);
     setHasLiked(true);
     setLikesCount((prev) => prev + 1);
@@ -49,272 +61,173 @@ export default function ProductModal({ product, onClose }) {
     localStorage.setItem("userLikes", JSON.stringify(likedProducts));
 
     try {
-      await updateDoc(doc(db, "products", product.id), {
-        likes: increment(1),
-      });
+      await updateDoc(doc(db, "products", product.id), { likes: increment(1) });
     } catch (error) {
-      await setDoc(
-        doc(db, "products", product.id),
-        { likes: 1 },
-        { merge: true }
-      );
+      await setDoc(doc(db, "products", product.id), { likes: 1 }, { merge: true });
     }
-
     setIsLiking(false);
   };
 
   const handleAddToCart = () => {
-    if (hasVariants && !selectedVariant)
-      return toast.error("Selecciona una talla o medida");
-
-    if (quantity > availableStock)
-      return toast.error("Supera el stock disponible");
-
+    if (hasVariants && !selectedVariant) return toast.error("Selecciona una talla o medida");
+    if (quantity > availableStock) return toast.error("Supera el stock disponible");
     addItem(product, selectedVariant, quantity);
     toast.success("¡Excelente elección! 🛍️");
+    onClose();
   };
 
-  const stockPercentage = Math.min(
-    (availableStock / (hasVariants ? 50 : 100)) * 100,
-    100
-  );
-
+  const stockPercentage = Math.min((availableStock / (hasVariants ? 50 : 100)) * 100, 100);
   const isLowStock = availableStock > 0 && availableStock <= 5;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center items-center bg-black/70 backdrop-blur-md sm:p-4 animate-in fade-in duration-300"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="relative bg-white w-[92%] sm:w-full max-w-sm rounded-[2.5rem] sm:rounded-3xl max-h-[88vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-10 duration-500">
+      <div className="relative bg-white w-full sm:max-w-md rounded-t-[2.5rem] sm:rounded-3xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-500">
         
-        {/* BOTÓN CERRAR */}
-        <div className="absolute top-4 right-4 z-50">
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white shadow-xl flex items-center justify-center text-gray-600 hover:bg-gray-100 active:scale-90 transition-all text-lg font-bold"
-          >
-            ✕
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/10 backdrop-blur-md flex items-center justify-center text-gray-800 hover:bg-black/20 active:scale-90 transition-all text-xl font-bold"
+        >
+          ✕
+        </button>
 
-        {/* IMÁGENES */}
-        <div className="relative aspect-square bg-gray-50 mx-5 mt-6 rounded-3xl overflow-hidden mb-6 shadow-inner group">
-          {product.images?.length > 0 ? (
-            <img
-              src={product.images[activeImage]}
-              alt={product.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-6xl opacity-50">
-              ✨
-            </div>
-          )}
-
-          {product.images?.length > 1 && (
-            <>
-              <button
-                onClick={() =>
-                  setActiveImage(
-                    (i) => (i - 1 + product.images.length) % product.images.length
-                  )
-                }
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all text-gray-800 font-bold active:scale-95"
-              >
-                ‹
-              </button>
-
-              <button
-                onClick={() =>
-                  setActiveImage((i) => (i + 1) % product.images.length)
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all text-gray-800 font-bold active:scale-95"
-              >
-                ›
-              </button>
-
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
-                {product.images.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveImage(i)}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                      i === activeImage
-                        ? "w-6 bg-white shadow-md"
-                        : "w-1.5 bg-white/50"
-                    }`}
-                  />
-                ))}
+        <div className="flex-1 overflow-y-auto pb-6">
+          <div className="relative aspect-square bg-gray-50 mx-4 mt-4 rounded-[2rem] overflow-hidden shadow-inner group">
+            {/* BADGE DE OFERTA EN GRANDE */}
+            {hasDiscount && discountPercentage > 0 && (
+              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/20 shadow-2xl">
+                <span className="text-lg animate-bounce">{isFlashOffer ? "⚡" : "🔥"}</span>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-white leading-none">OFERTA TOP</span>
+                  <span className="text-[14px] font-black text-orange-400 leading-none">-{discountPercentage}%</span>
+                </div>
               </div>
-            </>
-          )}
-        </div>
+            )}
 
-        {/* CONTENIDO PRINCIPAL */}
-        <div className="px-6 pb-8 space-y-6">
-          <div className="flex justify-between items-start gap-4">
-            <div>
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-tight mb-2">
-                {product.name}
-              </h2>
+            {product.images?.length > 0 ? (
+              <img src={product.images[activeImage]} alt={product.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-6xl opacity-50">✨</div>
+            )}
 
-              <div className="flex items-baseline gap-3">
-                <span
-                  className="text-3xl font-black"
-                  style={{ color: "var(--primary)" }}
-                >
-                  ${product.price}
-                </span>
-                <span className="text-sm font-semibold text-gray-400">
-                  Bs. {bsPrice(product.price)}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleLike}
-              className={`flex flex-col items-center justify-center gap-1 p-3 rounded-2xl transition-all duration-500 shadow-sm ${
-                hasLiked
-                  ? "bg-pink-50 border border-pink-100"
-                  : "bg-white border border-gray-100 hover:bg-gray-50 active:scale-90"
-              }`}
-            >
-              <span
-                className={`text-2xl transition-all duration-500 ${
-                  hasLiked ? "text-pink-500 scale-110 drop-shadow-md" : "text-gray-300 grayscale"
-                }`}
-              >
-                {hasLiked ? "❤️" : "🤍"}
-              </span>
-              <span
-                className={`text-[10px] font-black tracking-widest ${
-                  hasLiked ? "text-pink-500" : "text-gray-400"
-                }`}
-              >
-                {likesCount}
-              </span>
-            </button>
+            {product.images?.length > 1 && (
+              <>
+                <button onClick={() => setActiveImage((i) => (i - 1 + product.images.length) % product.images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg active:scale-95">‹</button>
+                <button onClick={() => setActiveImage((i) => (i + 1) % product.images.length)} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg active:scale-95">›</button>
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                  {product.images.map((_, i) => (
+                    <button key={i} onClick={() => setActiveImage(i)} className={`h-1.5 rounded-full transition-all duration-300 ${i === activeImage ? "w-6 bg-white shadow-md" : "w-1.5 bg-white/50"}`} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
-          {product.description && (
-            <div
-              className="text-sm text-gray-500 leading-relaxed font-medium"
-              dangerouslySetInnerHTML={{ __html: product.description }}
-            />
-          )}
-
-          {/* SELECTOR DE TALLAS CONECTADO AL ADMIN */}
-          {hasVariants && (
-            <div className="space-y-3 bg-gray-50 p-4 rounded-3xl border border-gray-100">
-              <label className="text-xs font-black uppercase tracking-widest text-gray-500 flex justify-between">
-                <span>Selecciona tu talla</span>
-                {!selectedVariant && (
-                  <span className="text-red-500 animate-pulse">¡Requerido!</span>
-                )}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {variants.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => {
-                      setSelectedVariant(v);
-                      setQuantity(1);
-                    }}
-                    disabled={v.stock === 0}
-                    className={`px-4 py-2 rounded-xl transition-all flex flex-col items-center border min-w-[70px] ${
-                      selectedVariant === v
-                        ? "bg-black text-white border-black shadow-lg scale-105"
-                        : "bg-white text-gray-600 border-gray-200 shadow-sm hover:bg-gray-100"
-                    } ${v.stock === 0 ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
-                  >
-                    {/* AQUÍ ESTÁ LA CORRECCIÓN EXACTA: v.label */}
-                    <span className="text-base font-black uppercase">
-                      {v.label}
+          <div className="px-6 mt-6 space-y-6">
+            <div className="flex justify-between items-start gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-tight mb-2 uppercase">
+                  {product.name}
+                </h2>
+                <div className="flex flex-col">
+                  <div className="flex items-baseline gap-3">
+                    <span className={`text-3xl font-black ${hasDiscount ? "text-red-600" : "text-pink-600"}`}>
+                      ${product.price}
                     </span>
-                    <span className={`text-[10px] font-medium mt-0.5 ${
-                      selectedVariant === v ? "text-gray-300" : "text-gray-400"
-                    }`}>
-                      {v.stock > 0 ? `${v.stock} disp.` : "Agotado"}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* BARRA DE STOCK Y CANTIDAD */}
-          {(selectedVariant || !hasVariants) && (
-            <>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-black uppercase tracking-widest text-gray-400">
-                  <span>Disponibilidad</span>
-                  <span className={isLowStock ? "text-red-500" : "text-green-500"}>
-                    {availableStock} en stock
+                    {oldPrice > 0 && (
+                      <span className="text-lg font-bold text-gray-400 line-through decoration-red-500/50">
+                        ${oldPrice}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-gray-400 mt-1 uppercase">
+                    Bs. {bsPrice(product.price)}
                   </span>
                 </div>
-                <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${
-                      isLowStock ? "bg-red-500" : "bg-green-500"
-                    }`}
-                    style={{ width: `${stockPercentage}%` }}
-                  />
-                </div>
-                {isLowStock && availableStock > 0 && (
-                  <p className="text-xs text-red-500 font-semibold text-right">
-                    ¡Quedan pocas unidades! 🔥
-                  </p>
-                )}
               </div>
 
-              {availableStock > 0 && (
-                <div className="flex items-center justify-between bg-white border border-gray-100 p-2 rounded-2xl shadow-sm">
-                  <label className="text-xs font-black uppercase tracking-widest text-gray-400 pl-3">
-                    Cantidad
-                  </label>
-                  <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-1">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 flex items-center justify-center text-2xl font-medium text-gray-500 hover:text-black hover:bg-white rounded-lg transition-all shadow-sm active:scale-95"
-                    >
-                      -
-                    </button>
-                    <span className="w-6 text-center font-black text-lg">
-                      {quantity}
-                    </span>
-                    <button
-                      onClick={() => setQuantity(Math.min(availableStock, quantity + 1))}
-                      className="w-10 h-10 flex items-center justify-center text-2xl font-medium text-gray-500 hover:text-black hover:bg-white rounded-lg transition-all shadow-sm active:scale-95"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+              <button
+                onClick={handleLike}
+                className={`flex flex-col items-center justify-center min-w-[60px] p-3 rounded-2xl transition-all duration-500 shadow-sm ${hasLiked ? "bg-pink-50 border border-pink-100" : "bg-white border border-gray-100 active:scale-90"}`}
+              >
+                <span className={`text-2xl transition-all duration-500 ${hasLiked ? "text-pink-500 scale-110 drop-shadow-md" : "text-gray-300 grayscale"}`}>
+                  {hasLiked ? "❤️" : "🤍"}
+                </span>
+                <span className={`text-[10px] font-black tracking-widest mt-1 ${hasLiked ? "text-pink-500" : "text-gray-400"}`}>
+                  {likesCount}
+                </span>
+              </button>
+            </div>
 
-          {/* BOTÓN FINAL */}
+            {product.description && (
+              <div className="text-sm text-gray-500 leading-relaxed font-medium bg-gray-50 p-4 rounded-2xl" dangerouslySetInnerHTML={{ __html: product.description }} />
+            )}
+
+            {hasVariants && (
+              <div className="space-y-3 bg-gray-50 p-4 rounded-3xl border border-gray-100">
+                <label className="text-xs font-black uppercase tracking-widest text-gray-500 flex justify-between">
+                  <span>Selecciona tu talla</span>
+                  {!selectedVariant && <span className="text-red-500 animate-pulse">¡Requerido!</span>}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {variants.map((v) => (
+                    <button
+                      key={v.id}
+                      onClick={() => { setSelectedVariant(v); setQuantity(1); }}
+                      disabled={v.stock === 0}
+                      className={`px-4 py-2 rounded-xl transition-all flex flex-col items-center border min-w-[70px] ${selectedVariant === v ? "bg-black text-white border-black shadow-lg scale-105" : "bg-white text-gray-600 border-gray-200 shadow-sm hover:bg-gray-100"} ${v.stock === 0 ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
+                    >
+                      <span className="text-base font-black uppercase">{v.label}</span>
+                      <span className={`text-[10px] font-medium mt-0.5 ${selectedVariant === v ? "text-gray-300" : "text-gray-400"}`}>
+                        {v.stock > 0 ? `${v.stock} disp.` : "Agotado"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(selectedVariant || !hasVariants) && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs font-black uppercase tracking-widest text-gray-400">
+                    <span>Disponibilidad</span>
+                    <span className={isLowStock ? "text-red-500 font-black animate-pulse" : "text-green-500"}>
+                      {availableStock} en stock
+                    </span>
+                  </div>
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-700 ${isLowStock ? "bg-red-500" : "bg-green-500"}`} style={{ width: `${stockPercentage}%` }} />
+                  </div>
+                  {isLowStock && availableStock > 0 && <p className="text-[11px] text-red-500 font-black flex items-center gap-1">⚠️ ¡Últimas unidades disponibles!</p>}
+                </div>
+
+                {availableStock > 0 && (
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                    <span className="text-xs font-black uppercase tracking-widest text-gray-500 pl-2">Cantidad</span>
+                    <div className="flex items-center gap-4 bg-white rounded-xl p-1 shadow-sm border border-gray-100">
+                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-8 h-8 flex items-center justify-center text-xl font-bold text-gray-600 active:scale-90">-</button>
+                      <span className="w-6 text-center font-black text-lg">{quantity}</span>
+                      <button onClick={() => setQuantity(Math.min(availableStock, quantity + 1))} className="w-8 h-8 flex items-center justify-center text-xl font-bold text-gray-600 active:scale-90">+</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-4 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-safe">
           <button
             onClick={handleAddToCart}
             disabled={availableStock === 0 || (hasVariants && !selectedVariant)}
-            className="w-full py-5 rounded-[2rem] text-white font-black uppercase tracking-[0.2em] shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 mt-4"
-            style={{
-              background:
-                availableStock === 0 || (hasVariants && !selectedVariant)
-                  ? "#ccc"
-                  : "var(--primary)",
-            }}
+            className="w-full py-4 rounded-[1.5rem] text-white font-black uppercase tracking-[0.2em] shadow-xl active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            style={{ background: availableStock === 0 || (hasVariants && !selectedVariant) ? "#d1d5db" : "var(--primary)" }}
           >
-            {availableStock === 0
-              ? "Agotado"
-              : hasVariants && !selectedVariant
-              ? "Elige una talla"
-              : "Añadir a la Bolsa"}
-            {availableStock > 0 && (hasVariants ? selectedVariant : true) && (
-              <span className="text-xl">🛍️</span>
-            )}
+            {availableStock === 0 ? "Agotado" : hasVariants && !selectedVariant ? "Elige una talla" : "Añadir a la Bolsa"}
+            {availableStock > 0 && (hasVariants ? selectedVariant : true) && <span className="text-xl animate-bounce">🛍️</span>}
           </button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import ProductCatalog from "../components/product/ProductCatalog";
 import ProductModal from "../components/product/ProductModal";
 import CartDrawer from "../components/cart/CartDrawer";
 import Footer from "../components/layout/Footer";
+import InstallButton from "../InstallButton"; // Tu botón de App
 
 export default function StorePage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -14,7 +15,6 @@ export default function StorePage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Barra de anuncio y cabecera fijas */}
       <div className="fixed top-0 left-0 right-0 z-40">
         <AnnouncementBar />
         <Header onProductClick={setSelectedProduct} />
@@ -22,13 +22,9 @@ export default function StorePage() {
 
       <div className="pt-28">
         <div className="max-w-md mx-auto">
-          {/* PASO CLAVE: Ahora el Banner recibe el filtro para saber si ocultarse */}
           <HeroBanner activeFilter={activeFilter} />
-
-          {/* Botones de categorías */}
           <QuickButtons onFilter={setActiveFilter} />
           
-          {/* Catálogo de productos */}
           <ProductCatalog
             activeFilter={activeFilter}
             onProductClick={setSelectedProduct}
@@ -39,7 +35,6 @@ export default function StorePage() {
         </div>
       </div>
 
-      {/* Ventanas emergentes */}
       {selectedProduct && (
         <ProductModal
           product={selectedProduct}
@@ -47,6 +42,7 @@ export default function StorePage() {
         />
       )}
       <CartDrawer />
+      <InstallButton />
     </div>
   );
 }
