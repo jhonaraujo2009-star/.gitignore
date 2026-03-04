@@ -1,70 +1,57 @@
 import React, { useState, useEffect } from 'react';
+// Importamos el cerebro del carrito para que el botón sea inteligente
+import { useCart } from "./context/CartContext";
 
 const InstallButton = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
+  
+  // Extraemos la información del carrito
+  const { itemCount, isOpen } = useCart();
 
   useEffect(() => {
     const handler = (e) => {
-      // Evita que el navegador muestre el aviso automático por defecto
       e.preventDefault();
-      // Guarda el evento para usarlo después
       setDeferredPrompt(e);
-      // Muestra nuestro botón personalizado
       setIsVisible(true);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
-
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-
-    // Muestra el mensaje de instalación original
     deferredPrompt.prompt();
-
-    // Espera la respuesta del usuario
     const { outcome } = await deferredPrompt.userChoice;
     
     if (outcome === 'accepted') {
       console.log('El usuario aceptó instalar la App');
     }
 
-    // Limpiamos el evento y ocultamos el botón
     setDeferredPrompt(null);
     setIsVisible(false);
   };
 
-  if (!isVisible) return null;
+  // REGLA 1: Si no hay prompt o el carrito está abierto, lo ocultamos
+  if (!isVisible || isOpen) return null;
+
+  // 🌟 MAGIA: Si hay productos en la bolsa, la barra de pago está visible (mide ~90px). 
+  // Así que subimos este botón a 100px para que quede justo encima flotando en armonía.
+  const isCheckoutBarVisible = itemCount > 0;
+  const bottomPosition = isCheckoutBarVisible ? '100px' : '24px';
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '20px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      zIndex: 1000,
-      width: '90%',
-      maxWidth: '400px'
-    }}>
+    <div 
+      className="fixed left-1/2 -translate-x-1/2 z-[45] w-[92%] max-w-md transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+      style={{ bottom: bottomPosition }}
+    >
       <button
         onClick={handleInstallClick}
-        style={{
-          width: '100%',
-          padding: '15px',
-          backgroundColor: '#0070f3',
-          color: 'white',
-          border: 'none',
-          borderRadius: '10px',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          boxShadow: '0px 4px 10px rgba(0,0,0,0.2)',
-          cursor: 'pointer'
-        }}
+        className="w-full py-3.5 bg-white/90 backdrop-blur-xl border border-white shadow-[0_15px_40px_-10px_rgba(0,0,0,0.15)] rounded-2xl text-[11px] font-black text-gray-800 uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-transform"
       >
-        📥 Descargar App de la Tienda
+        <span className="text-xl animate-bounce">📲</span>
+        Descargar App de la Tienda
       </button>
     </div>
   );
