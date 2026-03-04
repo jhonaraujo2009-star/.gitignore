@@ -8,6 +8,7 @@ import ProductModal from "../components/product/ProductModal";
 import CartDrawer from "../components/cart/CartDrawer";
 import Footer from "../components/layout/Footer";
 import InstallButton from "../InstallButton";
+import WhatsAppVIP from "../components/layout/WhatsAppVIP"; // 🌟 AQUÍ IMPORTAMOS EL BOTÓN VIP
 
 // IMPORTAMOS LOS CEREBROS
 import { useCart } from "../context/CartContext";
@@ -51,6 +52,10 @@ export default function StorePage() {
       )}
       
       <CartDrawer />
+      
+      {/* 🌟 AQUÍ COLOCAMOS EL BOTÓN FLOTANTE VIP DE WHATSAPP 🌟 */}
+      <WhatsAppVIP />
+      
       <InstallButton />
 
       {/* 🌟 BARRA FLOTANTE ULTRAPRO "DREAM PINK GLOW" (Solo sale si hay productos) 🌟 */}

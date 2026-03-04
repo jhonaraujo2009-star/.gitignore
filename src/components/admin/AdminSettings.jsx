@@ -16,7 +16,13 @@ export default function AdminSettings() {
       { id: 'new', label: 'Lo Último', icon: '✨', filter: 'new' }
     ],
     socialLinks: settings.socialLinks || { instagram: "", tiktok: "", whatsapp: "" },
-    customIcons: settings.customIcons || { whatsapp: "", instagram: "", tiktok: "" }
+    customIcons: settings.customIcons || { whatsapp: "", instagram: "", tiktok: "" },
+    // 🌟 NUEVO MÓDULO VIP DE WHATSAPP 🌟
+    whatsappWidget: settings.whatsappWidget || {
+      active: true,
+      number: "",
+      message: "¡Hola Luckathys! 💖 Estoy viendo la tienda y me gustaría recibir asesoría personalizada."
+    }
   });
 
   const [saving, setSaving] = useState(false);
@@ -63,7 +69,7 @@ export default function AdminSettings() {
   return (
     <div className="pb-24 space-y-8 max-w-md mx-auto p-4">
 
-      {/* FINANZAS - CAMPO RESTAURADO */}
+      {/* FINANZAS */}
       <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
         <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Finanzas</h3>
         <div>
@@ -77,6 +83,30 @@ export default function AdminSettings() {
             className="w-full bg-pink-50 border border-pink-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-pink-400 font-bold text-pink-600" 
           />
         </div>
+      </div>
+
+      {/* 🌟 MÓDULO ASESORÍA WHATSAPP VIP 🌟 */}
+      <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white space-y-4">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Asesoría WhatsApp VIP</h3>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={form.whatsappWidget.active} onChange={(e) => setForm({...form, whatsappWidget: {...form.whatsappWidget, active: e.target.checked}})} />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+          </label>
+        </div>
+        
+        {form.whatsappWidget.active && (
+          <div className="space-y-4 animate-in fade-in zoom-in duration-300">
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">Número (Ej: 584141234567)</label>
+              <input type="text" value={form.whatsappWidget.number} onChange={(e) => setForm({...form, whatsappWidget: {...form.whatsappWidget, number: e.target.value}})} placeholder="58..." className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm outline-none border border-gray-100 focus:border-pink-300" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">Mensaje Pre-escrito del Cliente</label>
+              <textarea value={form.whatsappWidget.message} onChange={(e) => setForm({...form, whatsappWidget: {...form.whatsappWidget, message: e.target.value}})} rows={3} className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm outline-none border border-gray-100 focus:border-pink-300 resize-none" />
+            </div>
+          </div>
+        )}
       </div>
       
       {/* BOTONES VIP */}
