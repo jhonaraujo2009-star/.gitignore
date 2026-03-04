@@ -29,7 +29,8 @@ export function CartProvider({ children }) {
         },
       ];
     });
-    setIsOpen(true);
+    // ¡Magia Pro! Hemos quitado la línea que abría el carrito a la fuerza
+    // para que el cliente pueda seguir vitrineando sin interrupciones.
   }, []);
 
   const removeItem = useCallback((key) => {
@@ -58,7 +59,7 @@ export function CartProvider({ children }) {
           name: i.product.name,
           qty: i.quantity,
           price: i.price,
-          // ÚNICO CAMBIO: Ahora sí guardamos la talla/color elegido
+          // Guardamos la talla/color elegido
           variant: i.variant?.label || null 
         })),
         totalAmount: total,
