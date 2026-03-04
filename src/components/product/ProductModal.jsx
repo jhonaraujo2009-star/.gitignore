@@ -65,7 +65,7 @@ export default function ProductModal({ product, onClose }) {
 
   const handleAddToCart = () => {
     if (hasVariants && !selectedVariant)
-      return toast.error("Selecciona una talla o medida (mg)");
+      return toast.error("Selecciona una talla o medida");
 
     if (quantity > availableStock)
       return toast.error("Supera el stock disponible");
@@ -86,10 +86,9 @@ export default function ProductModal({ product, onClose }) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      {/* CONTENEDOR OPTIMIZADO (10% MÁS COMPACTO) */}
       <div className="relative bg-white w-[92%] sm:w-full max-w-sm rounded-[2.5rem] sm:rounded-3xl max-h-[88vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-10 duration-500">
-
-        {/* BOTÓN CERRAR PREMIUM (SIEMPRE VISIBLE) */}
+        
+        {/* BOTÓN CERRAR */}
         <div className="absolute top-4 right-4 z-50">
           <button
             onClick={onClose}
@@ -118,9 +117,7 @@ export default function ProductModal({ product, onClose }) {
               <button
                 onClick={() =>
                   setActiveImage(
-                    (i) =>
-                      (i - 1 + product.images.length) %
-                      product.images.length
+                    (i) => (i - 1 + product.images.length) % product.images.length
                   )
                 }
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all text-gray-800 font-bold active:scale-95"
@@ -154,7 +151,7 @@ export default function ProductModal({ product, onClose }) {
           )}
         </div>
 
-        {/* CONTENIDO */}
+        {/* CONTENIDO PRINCIPAL */}
         <div className="px-6 pb-8 space-y-6">
           <div className="flex justify-between items-start gap-4">
             <div>
@@ -169,7 +166,6 @@ export default function ProductModal({ product, onClose }) {
                 >
                   ${product.price}
                 </span>
-
                 <span className="text-sm font-semibold text-gray-400">
                   Bs. {bsPrice(product.price)}
                 </span>
@@ -186,14 +182,11 @@ export default function ProductModal({ product, onClose }) {
             >
               <span
                 className={`text-2xl transition-all duration-500 ${
-                  hasLiked
-                    ? "text-pink-500 scale-110 drop-shadow-md"
-                    : "text-gray-300 grayscale"
+                  hasLiked ? "text-pink-500 scale-110 drop-shadow-md" : "text-gray-300 grayscale"
                 }`}
               >
                 {hasLiked ? "❤️" : "🤍"}
               </span>
-
               <span
                 className={`text-[10px] font-black tracking-widest ${
                   hasLiked ? "text-pink-500" : "text-gray-400"
@@ -211,20 +204,115 @@ export default function ProductModal({ product, onClose }) {
             />
           )}
 
+          {/* SELECTOR DE TALLAS CONECTADO AL ADMIN */}
+          {hasVariants && (
+            <div className="space-y-3 bg-gray-50 p-4 rounded-3xl border border-gray-100">
+              <label className="text-xs font-black uppercase tracking-widest text-gray-500 flex justify-between">
+                <span>Selecciona tu talla</span>
+                {!selectedVariant && (
+                  <span className="text-red-500 animate-pulse">¡Requerido!</span>
+                )}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {variants.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => {
+                      setSelectedVariant(v);
+                      setQuantity(1);
+                    }}
+                    disabled={v.stock === 0}
+                    className={`px-4 py-2 rounded-xl transition-all flex flex-col items-center border min-w-[70px] ${
+                      selectedVariant === v
+                        ? "bg-black text-white border-black shadow-lg scale-105"
+                        : "bg-white text-gray-600 border-gray-200 shadow-sm hover:bg-gray-100"
+                    } ${v.stock === 0 ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
+                  >
+                    {/* AQUÍ ESTÁ LA CORRECCIÓN EXACTA: v.label */}
+                    <span className="text-base font-black uppercase">
+                      {v.label}
+                    </span>
+                    <span className={`text-[10px] font-medium mt-0.5 ${
+                      selectedVariant === v ? "text-gray-300" : "text-gray-400"
+                    }`}>
+                      {v.stock > 0 ? `${v.stock} disp.` : "Agotado"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* BARRA DE STOCK Y CANTIDAD */}
+          {(selectedVariant || !hasVariants) && (
+            <>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-black uppercase tracking-widest text-gray-400">
+                  <span>Disponibilidad</span>
+                  <span className={isLowStock ? "text-red-500" : "text-green-500"}>
+                    {availableStock} en stock
+                  </span>
+                </div>
+                <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      isLowStock ? "bg-red-500" : "bg-green-500"
+                    }`}
+                    style={{ width: `${stockPercentage}%` }}
+                  />
+                </div>
+                {isLowStock && availableStock > 0 && (
+                  <p className="text-xs text-red-500 font-semibold text-right">
+                    ¡Quedan pocas unidades! 🔥
+                  </p>
+                )}
+              </div>
+
+              {availableStock > 0 && (
+                <div className="flex items-center justify-between bg-white border border-gray-100 p-2 rounded-2xl shadow-sm">
+                  <label className="text-xs font-black uppercase tracking-widest text-gray-400 pl-3">
+                    Cantidad
+                  </label>
+                  <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-1">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="w-10 h-10 flex items-center justify-center text-2xl font-medium text-gray-500 hover:text-black hover:bg-white rounded-lg transition-all shadow-sm active:scale-95"
+                    >
+                      -
+                    </button>
+                    <span className="w-6 text-center font-black text-lg">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={() => setQuantity(Math.min(availableStock, quantity + 1))}
+                      className="w-10 h-10 flex items-center justify-center text-2xl font-medium text-gray-500 hover:text-black hover:bg-white rounded-lg transition-all shadow-sm active:scale-95"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {/* BOTÓN FINAL */}
           <button
             onClick={handleAddToCart}
-            disabled={availableStock === 0}
-            className="w-full py-5 rounded-[2rem] text-white font-black uppercase tracking-[0.2em] shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            disabled={availableStock === 0 || (hasVariants && !selectedVariant)}
+            className="w-full py-5 rounded-[2rem] text-white font-black uppercase tracking-[0.2em] shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 mt-4"
             style={{
               background:
-                availableStock === 0 ? "#ccc" : "var(--primary)",
+                availableStock === 0 || (hasVariants && !selectedVariant)
+                  ? "#ccc"
+                  : "var(--primary)",
             }}
           >
             {availableStock === 0
-              ? "No Disponible"
+              ? "Agotado"
+              : hasVariants && !selectedVariant
+              ? "Elige una talla"
               : "Añadir a la Bolsa"}
-            {availableStock > 0 && (
+            {availableStock > 0 && (hasVariants ? selectedVariant : true) && (
               <span className="text-xl">🛍️</span>
             )}
           </button>
@@ -233,4 +321,3 @@ export default function ProductModal({ product, onClose }) {
     </div>
   );
 }
-// cambio de pruebagit add .
