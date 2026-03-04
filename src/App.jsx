@@ -20,45 +20,47 @@ import InstallButton from "./InstallButton";
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppProvider>
-          <CartProvider>
-            <Toaster
-              position="top-center"
-              toastOptions={{
-                duration: 3000,
-                style: {
-                  borderRadius: "16px",
-                  background: "#fff",
-                  color: "#333",
-                  boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                },
-              }}
-            />
-            <Routes>
-              <Route path="/" element={<StorePage />} />
-              <Route path="/preguntas" element={<QuestionsPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route
-                path="/admin/*"
-                element={
-                  <ProtectedRoute>
-                    <AdminPage />
-                  </ProtectedRoute>
-                }
+    // 🌟 AQUÍ ESTÁ LA MAGIA: El Fondo de Seda Premium 🌟
+    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50/60 to-pink-50/20 text-gray-900 selection:bg-pink-200 selection:text-pink-900 transition-colors duration-500">
+      <BrowserRouter>
+        <AuthProvider>
+          <AppProvider>
+            <CartProvider>
+              <Toaster
+                position="top-center"
+                toastOptions={{
+                  duration: 3000,
+                  style: {
+                    borderRadius: "16px",
+                    background: "#fff",
+                    color: "#333",
+                    boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  },
+                }}
               />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+              <Routes>
+                <Route path="/" element={<StorePage />} />
+                <Route path="/preguntas" element={<QuestionsPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route
+                  path="/admin/*"
+                  element={
+                    <ProtectedRoute>
+                      <AdminPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
 
-            {/* AQUÍ SE MUESTRA EL BOTÓN SI LA APP NO ESTÁ INSTALADA */}
-            <InstallButton />
-            
-          </CartProvider>
-        </AppProvider>
-      </AuthProvider>
-    </BrowserRouter>
+              <InstallButton />
+              
+            </CartProvider>
+          </AppProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </div>
   );
 }

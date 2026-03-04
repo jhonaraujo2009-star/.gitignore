@@ -8,8 +8,17 @@ export default function ProductCatalog({ activeFilter, onProductClick, onFilter 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(8);
+  
+  const [liveTime, setLiveTime] = useState(Date.now());
 
   useEffect(() => { setVisibleCount(8); }, [activeFilter]);
+
+  useEffect(() => {
+    if (activeFilter === "ofertas") {
+      const interval = setInterval(() => setLiveTime(Date.now()), 1000);
+      return () => clearInterval(interval);
+    }
+  }, [activeFilter]);
 
   useEffect(() => {
     const unsubSessions = onSnapshot(
@@ -37,21 +46,42 @@ export default function ProductCatalog({ activeFilter, onProductClick, onFilter 
   const isOfertas = activeFilter === "ofertas";
 
   if (isTopTen) {
-    filtered = [...products].sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0)).slice(0, 10);
+    filtered = [...products]
+      .filter(p => (p.salesCount || 0) > 0)
+      .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0))
+      .slice(0, 10);
   } else if (isNewArrivals) {
     const unaSemanaAtras = Date.now() - 7 * 24 * 60 * 60 * 1000;
     filtered = products.filter(p => p.createdAtMs >= unaSemanaAtras || p.isNew).sort((a, b) => b.createdAtMs - a.createdAtMs);
   } else if (isOfertas) {
-    // CORRECCIÓN EXACTA: Busca oldPrice o si hay una oferta relámpago activa
+    
+    // 🌟 NUEVA CALCULADORA PARA ORDENAR OFERTAS 🌟
     filtered = products.filter(p => {
-      const hasOldPrice = p.oldPrice && Number(p.oldPrice) > Number(p.price);
-      const isFlashOffer = p.offerEndsAt && p.offerEndsAt > Date.now();
-      return hasOldPrice || isFlashOffer;
+      const pOld = Number(p.oldPrice) || 0;
+      const pPrice = Number(p.price) || 0;
+      const pExtra = Number(p.discount) || Number(p.offerDiscount) || 0;
+      const finalPrice = pExtra > 0 ? pPrice - (pPrice * (pExtra / 100)) : pPrice;
+      
+      const hasDiscount = pOld > finalPrice || pExtra > 0;
+      const isFlashOffer = p.offerEndsAt && p.offerEndsAt > liveTime;
+      return hasDiscount || isFlashOffer;
     }).sort((a, b) => {
-      const ahorroA = (Number(a.oldPrice) || 0) - Number(a.price);
-      const ahorroB = (Number(b.oldPrice) || 0) - Number(b.price);
-      return ahorroB - ahorroA; // Los mayores descuentos primero
+      // Ordena calculando quién tiene el mayor descuento total en dólares
+      const aOld = Number(a.oldPrice) || Number(a.price);
+      const aPrice = Number(a.price) || 0;
+      const aExtra = Number(a.discount) || Number(a.offerDiscount) || 0;
+      const aFinal = aExtra > 0 ? aPrice - (aPrice * (aExtra / 100)) : aPrice;
+      const ahorroA = aOld - aFinal;
+
+      const bOld = Number(b.oldPrice) || Number(b.price);
+      const bPrice = Number(b.price) || 0;
+      const bExtra = Number(b.discount) || Number(b.offerDiscount) || 0;
+      const bFinal = bExtra > 0 ? bPrice - (bPrice * (bExtra / 100)) : bPrice;
+      const ahorroB = bOld - bFinal;
+
+      return ahorroB - ahorroA;
     });
+
   } else if (activeFilter && activeFilter !== "all") {
     filtered = products.filter(p => p.sessionId === activeFilter);
   }
@@ -96,7 +126,7 @@ export default function ProductCatalog({ activeFilter, onProductClick, onFilter 
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-20 text-gray-400 italic">Cargando productos súper exclusivos...</div>
+        <div className="text-center py-20 text-gray-400 italic">No hay productos en esta sección por ahora.</div>
       ) : (
         <div className="grid grid-cols-2 gap-x-4 gap-y-12">
           {visibleProducts.map((p, index) => (
