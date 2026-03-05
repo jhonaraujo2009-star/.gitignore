@@ -6,7 +6,7 @@ import { db } from "../../config/firebase";
 import toast from "react-hot-toast";
 
 // ==========================================
-// 1. VARIANT MANAGER (INTACTO)
+// 1. VARIANT MANAGER
 // ==========================================
 function VariantManager({ variants, onChange }) {
   const addVariant = () => {
@@ -23,7 +23,7 @@ function VariantManager({ variants, onChange }) {
         <button type="button" onClick={addVariant}
           className="text-xs px-3 py-1 rounded-xl font-semibold text-white"
           style={{ background: "var(--primary)" }}>
-          + Agregar
+          + Agregar_Productos
         </button>
       </div>
       <div className="space-y-2">
@@ -52,7 +52,7 @@ function VariantManager({ variants, onChange }) {
 }
 
 // ==========================================
-// 2. PRODUCT FORM (INTACTO)
+// 2. PRODUCT FORM
 // ==========================================
 function ProductForm({ sessions, product, onClose }) {
   const [form, setForm] = useState({
@@ -192,7 +192,7 @@ function ProductForm({ sessions, product, onClose }) {
           </div>
 
           <div className="bg-pink-50 p-4 rounded-2xl border border-pink-100">
-            <label className="block text-sm font-black text-pink-600 mb-2">⚡ Oferta Relámpago (Automática)</label>
+            <label className="block text-sm font-black text-pink-600 mb-2">⚡ Oferta Relámpago</label>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-gray-500 uppercase">Descuento (%)</label>
@@ -250,7 +250,7 @@ function ProductForm({ sessions, product, onClose }) {
 }
 
 // ==========================================
-// 3. ADMIN PRODUCTS (ACORDEÓN PREMIUM)
+// 3. ADMIN PRODUCTS (BUSCADOR + ACORDEÓN REPARADO CSS GRID)
 // ==========================================
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -259,7 +259,8 @@ export default function AdminProducts() {
   const [formProduct, setFormProduct] = useState(null);
   const [showForm, setShowForm] = useState(false);
   
-  // NUEVO: Estado para saber qué categoría (sesión) está abierta en el acordeón
+  // ESTADOS DEL BUSCADOR Y ACORDEÓN
+  const [searchTerm, setSearchTerm] = useState("");
   const [expandedSessionId, setExpandedSessionId] = useState(null);
 
   useEffect(() => {
@@ -274,32 +275,44 @@ export default function AdminProducts() {
   }, []);
 
   const deleteProduct = async (id, e) => {
-    e.stopPropagation(); // Evita que se cierre el acordeón al borrar
+    e.stopPropagation(); 
     if (!confirm("¿Eliminar este producto?")) return;
     await deleteDoc(doc(db, "products", id));
     toast.success("Producto eliminado");
   };
 
   const editProduct = (p, e) => {
-    e.stopPropagation(); // Evita que se cierre el acordeón al editar
+    e.stopPropagation(); 
     setFormProduct(p);
     setShowForm(true);
   };
 
-  // Agrupamos los productos por categoría
+  // 🔍 LÓGICA DE BÚSQUEDA INTELIGENTE
+  const filteredProducts = products.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const groupedProducts = sessions.map(session => ({
     ...session,
-    items: products.filter(p => p.sessionId === session.id)
+    items: filteredProducts.filter(p => p.sessionId === session.id)
   }));
 
-  // Productos huérfanos (si llegara a borrarse una sesión)
-  const orphanProducts = products.filter(p => !sessions.find(s => s.id === p.sessionId));
+  const orphanProducts = filteredProducts.filter(p => !sessions.find(s => s.id === p.sessionId));
   if (orphanProducts.length > 0) {
     groupedProducts.push({ id: 'orphans', name: 'Sin Categoría', items: orphanProducts });
   }
 
+  const displayGroups = searchTerm 
+    ? groupedProducts.filter(group => group.items.length > 0) 
+    : groupedProducts;
+
   const toggleSession = (id) => {
     setExpandedSessionId(prev => prev === id ? null : id);
+  };
+
+  const isExpanded = (groupId) => {
+    if (searchTerm !== "") return true; 
+    return expandedSessionId === groupId; 
   };
 
   return (
@@ -310,8 +323,30 @@ export default function AdminProducts() {
           onClick={() => { setFormProduct(null); setShowForm(true); }}
           className="px-5 py-2.5 rounded-2xl text-white text-sm font-black shadow-lg hover:scale-105 transition-transform"
           style={{ background: "var(--primary)" }}>
-          + Agregar Producto
+          + Agregar_Productos
         </button>
+      </div>
+
+      {/* 🌟 BARRA DE BÚSQUEDA VIP 🌟 */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <span className="text-gray-400 text-lg">🔍</span>
+        </div>
+        <input
+          type="text"
+          placeholder="Buscar producto por nombre..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-100 rounded-2xl text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-pink-300 focus:ring-4 focus:ring-pink-50 transition-all shadow-sm"
+        />
+        {searchTerm && (
+          <button 
+            onClick={() => setSearchTerm("")}
+            className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-pink-500"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -320,77 +355,84 @@ export default function AdminProducts() {
         </div>
       ) : (
         <div className="space-y-4">
-          {groupedProducts.length === 0 ? (
-            <div className="bg-white rounded-3xl shadow-sm p-8 text-center">
-              <span className="text-4xl block mb-2">📁</span>
-              <p className="text-gray-400 text-sm font-semibold">Crea una categoría (Sesión) y agrega productos.</p>
+          {displayGroups.length === 0 ? (
+            <div className="bg-white rounded-3xl shadow-sm p-8 text-center border border-gray-100">
+              <span className="text-4xl block mb-3">
+                {searchTerm ? "🕵️‍♂️" : "📁"}
+              </span>
+              <p className="text-gray-500 text-sm font-semibold">
+                {searchTerm ? `No se encontraron productos para "${searchTerm}"` : "Crea una categoría y agrega productos."}
+              </p>
             </div>
           ) : (
-            groupedProducts.map((group) => (
+            displayGroups.map((group) => (
               <div key={group.id} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden transition-all duration-300">
                 
-                {/* Cabecera del Acordeón (La "Carpeta") */}
+                {/* Cabecera del Acordeón */}
                 <button 
                   onClick={() => toggleSession(group.id)}
                   className="w-full flex items-center justify-between p-5 hover:bg-gray-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-xl shadow-inner">
-                      {expandedSessionId === group.id ? "📂" : "📁"}
+                      {isExpanded(group.id) ? "📂" : "📁"}
                     </div>
                     <div className="text-left">
                       <h3 className="font-bold text-gray-900 text-sm">{group.name}</h3>
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{group.items.length} Productos</p>
                     </div>
                   </div>
-                  <div className={`transform transition-transform duration-300 text-gray-400 ${expandedSessionId === group.id ? "rotate-180" : ""}`}>
+                  <div className={`transform transition-transform duration-300 text-gray-400 ${isExpanded(group.id) ? "rotate-180" : ""}`}>
                     ▼
                   </div>
                 </button>
 
-                {/* Contenido Desplegable (Los Productos de esa Carpeta) */}
+                {/* 🌟 LA MAGIA DE CSS GRID: Adiós saltos y cortes 🌟 */}
                 <div 
-                  className={`transition-all duration-500 ease-in-out ${expandedSessionId === group.id ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}
+                  className={`grid transition-all duration-500 ease-in-out ${
+                    isExpanded(group.id) ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                  }`}
                 >
-                  <div className="border-t border-gray-50 divide-y divide-gray-50/50">
-                    {group.items.length === 0 ? (
-                      <div className="p-5 text-center text-xs text-gray-400 italic">No hay productos en esta categoría.</div>
-                    ) : (
-                      group.items.map((p) => {
-                        const stock = p.variants?.length
-                          ? p.variants.reduce((s, v) => s + (v.stock || 0), 0)
-                          : (p.totalStock ?? 0);
+                  <div className="overflow-hidden">
+                    <div className="border-t border-gray-50 divide-y divide-gray-50/50">
+                      {group.items.length === 0 ? (
+                        <div className="p-5 text-center text-xs text-gray-400 italic">No hay productos en esta categoría.</div>
+                      ) : (
+                        group.items.map((p) => {
+                          const stock = p.variants?.length
+                            ? p.variants.reduce((s, v) => s + (v.stock || 0), 0)
+                            : (p.totalStock ?? 0);
 
-                        return (
-                          <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-pink-50/30 transition-colors group/item">
-                            {/* Línea conectora visual */}
-                            <div className="w-4 border-b-2 border-l-2 border-gray-100 h-8 -mt-8 ml-2 rounded-bl-lg absolute" />
-                            
-                            <div className="ml-8 w-12 h-12 rounded-xl overflow-hidden bg-gray-50 shadow-sm flex-shrink-0">
-                              {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-gray-300">🖼️</span>}
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-gray-800 truncate flex items-center gap-2">
-                                {p.name} 
-                                {p.offerEndsAt > Date.now() && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] rounded-md font-black animate-pulse">⚡ OFERTA</span>}
-                              </p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className={`text-xs font-black ${p.oldPrice || (p.offerEndsAt > Date.now()) ? "text-pink-500" : "text-gray-500"}`}>${p.price}</span>
-                                {p.oldPrice && <span className="line-through text-gray-300 text-[10px]">${p.oldPrice}</span>}
-                                <span className="text-gray-300 text-[10px]">|</span>
-                                <span className="text-[10px] font-bold text-gray-400">Stock: {stock}</span>
+                          return (
+                            <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-pink-50/30 transition-colors group/item">
+                              <div className="w-4 border-b-2 border-l-2 border-gray-100 h-8 -mt-8 ml-2 rounded-bl-lg absolute" />
+                              
+                              <div className="ml-8 w-12 h-12 rounded-xl overflow-hidden bg-gray-50 shadow-sm flex-shrink-0">
+                                {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-gray-300">🖼️</span>}
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-800 truncate flex items-center gap-2">
+                                  {p.name} 
+                                  {p.offerEndsAt > Date.now() && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] rounded-md font-black animate-pulse">⚡ OFERTA</span>}
+                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className={`text-xs font-black ${p.oldPrice || (p.offerEndsAt > Date.now()) ? "text-pink-500" : "text-gray-500"}`}>${p.price}</span>
+                                  {p.oldPrice && <span className="line-through text-gray-300 text-[10px]">${p.oldPrice}</span>}
+                                  <span className="text-gray-300 text-[10px]">|</span>
+                                  <span className="text-[10px] font-bold text-gray-400">Stock: {stock}</span>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                <button onClick={(e) => editProduct(p, e)} className="p-2 rounded-xl bg-white shadow-sm border border-gray-100 text-gray-500 hover:text-pink-500 hover:border-pink-200 transition-all text-sm">✏️</button>
+                                <button onClick={(e) => deleteProduct(p.id, e)} className="p-2 rounded-xl bg-white shadow-sm border border-gray-100 text-gray-500 hover:text-red-500 hover:border-red-200 transition-all text-sm">🗑️</button>
                               </div>
                             </div>
-
-                            <div className="flex gap-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                              <button onClick={(e) => editProduct(p, e)} className="p-2 rounded-xl bg-white shadow-sm border border-gray-100 text-gray-500 hover:text-pink-500 hover:border-pink-200 transition-all text-sm">✏️</button>
-                              <button onClick={(e) => deleteProduct(p.id, e)} className="p-2 rounded-xl bg-white shadow-sm border border-gray-100 text-gray-500 hover:text-red-500 hover:border-red-200 transition-all text-sm">🗑️</button>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
                 </div>
 
