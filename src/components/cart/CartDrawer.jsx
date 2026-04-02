@@ -19,12 +19,14 @@ export default function CartDrawer() {
   const freeShippingProgress = Math.min(100, (total / settings.freeShippingGoal) * 100);
   const remaining = Math.max(0, settings.freeShippingGoal - total);
 
-  // Cargar métodos al abrir
+  // Cargar métodos al abrir y pre-seleccionar el primero
   useEffect(() => {
     if (isOpen) {
       const loadPayments = async () => {
         const snap = await getDocs(collection(db, "payments"));
-        setPaymentMethods(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const methods = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setPaymentMethods(methods);
+        if (methods.length > 0) setSelectedPayment(methods[0]);
       };
       loadPayments();
     } else {
@@ -51,7 +53,6 @@ export default function CartDrawer() {
 
   const sendOrder = async () => {
     if (!selectedPayment) return toast.error("Elige cómo vas a pagar");
-    if (!customer.name || !customer.phone) return toast.error("Dinos tu nombre y teléfono");
 
     const targetPhone = selectedPayment.phone || settings.whatsappNumber;
 
@@ -62,15 +63,18 @@ export default function CartDrawer() {
       const itemLines = items.map((i) => `• ${i.product.name}${i.variant ? ` [${i.variant.label}]` : ""} (x${i.quantity})`).join("\n");
       
       const message = `🛍️ *LUCKATHYS SHOP - NUEVA ORDEN*\n\n` +
-                      `👤 *Cliente:* ${customer.name}\n` +
-                      `📞 *Teléfono:* ${customer.phone}\n\n` +
+                      `${customer.name ? `👤 *Cliente:* ${customer.name}\n` : ""}` +
+                      `${customer.phone ? `📞 *Teléfono:* ${customer.phone}\n` : ""}` +
+                      `${customer.name || customer.phone ? "\n" : ""}` +
                       `📦 *Pedido:*\n${itemLines}\n\n` +
                       `${coupon ? `🏷️ *Cupón:* ${coupon.code} (-$${discount.toFixed(2)})\n` : ""}` +
                       `💵 *TOTAL A PAGAR: $${total.toFixed(2)}*\n` +
                       `🇻🇪 *BS. TOTAL: ${bsPrice(total)}*\n\n` +
                       `🏦 *MÉTODO DE PAGO:* ${selectedPayment.bankName}\n` +
-                      `📌 *DATOS:* ${selectedPayment.holderName} | ${selectedPayment.idNumber}\n\n` +
-                      `⚡ _Por favor, envíe el comprobante de pago por aquí._`;
+                      `📌 *DATOS:* ${selectedPayment.holderName} | ${selectedPayment.idNumber}\n` +
+                      `${selectedPayment.phone ? `📲 *Teléfono:* ${selectedPayment.phone}\n` : ""}` +
+                      `${selectedPayment.accountNumber ? `🏦 *Número de cuenta:* ${selectedPayment.accountNumber}\n` : ""}` +
+                      `\n⚡ _Por favor, envíe el comprobante de pago por aquí._`;
 
       window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, "_blank");
       
@@ -153,23 +157,25 @@ export default function CartDrawer() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Selecciona Método de Pago 🇻🇪</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Método de Pago 🇻🇪</label>
                 <div className="space-y-2">
                   {paymentMethods.map((pm) => (
-                    <button 
+                    <div 
                       key={pm.id} 
-                      onClick={() => setSelectedPayment(pm)}
-                      className={`w-full flex items-center gap-4 p-4 rounded-[1.8rem] border-2 transition-all ${selectedPayment?.id === pm.id ? "border-pink-500 bg-pink-50 shadow-md scale-[1.02]" : "border-gray-50 bg-gray-50/50 opacity-70 hover:opacity-100"}`}
+                      className="w-full flex items-center gap-4 p-4 rounded-[1.8rem] border-2 border-pink-500 bg-pink-50 shadow-md"
                     >
                       <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm">
                         {pm.bankName.toLowerCase().includes('zelle') ? "💎" : "🏦"}
                       </div>
-                      <div className="text-left">
+                      <div className="text-left flex-1">
                         <p className="text-[13px] font-black text-gray-800 uppercase leading-none mb-1">{pm.bankName}</p>
                         <p className="text-[10px] font-bold text-gray-400">{pm.holderName}</p>
+                        {pm.idNumber && <p className="text-[10px] font-bold text-gray-500 mt-0.5">{pm.idNumber}</p>}
+                        {pm.phone && <p className="text-[10px] font-bold text-pink-500 mt-0.5">📲 {pm.phone}</p>}
+                        {pm.accountNumber && <p className="text-[10px] font-bold text-gray-400 mt-0.5">Cta: {pm.accountNumber}</p>}
                       </div>
-                      {selectedPayment?.id === pm.id && <div className="ml-auto text-pink-500">✔</div>}
-                    </button>
+                      <div className="ml-auto text-pink-500 text-lg">✔</div>
+                    </div>
                   ))}
                 </div>
               </div>
