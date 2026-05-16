@@ -197,31 +197,9 @@ export default function Header({ onProductClick, onFilter }) {
 
             {menuOpen && (
               <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 py-2">
-                <p className="px-4 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  Sesiones
-                </p>
-                {sessions.map((s) => (
-                  <button
-                    key={s.id}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-700"
-                    onClick={() => {
-                      document.getElementById(`session-${s.id}`)?.scrollIntoView({ behavior: "smooth" });
-                      setMenuOpen(false);
-                    }}
-                  >
-                    {s.name}
-                  </button>
-                ))}
-                <div className="border-t border-gray-100 my-1" />
-                <button
-                  onClick={() => { navigate("/preguntas"); setMenuOpen(false); }}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-700"
-                >
-                  💬 Zona de Preguntas
-                </button>
                 <button
                   onClick={() => { navigate(user ? "/admin" : "/login"); setMenuOpen(false); }}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-700"
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-700 font-medium"
                 >
                   🔒 Panel Admin
                 </button>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
+import { Routes, Route, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 
@@ -10,6 +10,7 @@ import AdminSessions from "../components/admin/AdminSessions";
 import AdminProducts from "../components/admin/AdminProducts";
 import AdminInbox from "../components/admin/AdminInbox";
 import AdminPayments from "../components/admin/AdminPayments";
+import AdminControl from "../components/admin/AdminControl";
 
 // Lógica de "Logística" removida: 
 // 1. Borramos el import de AdminLogistics
@@ -18,6 +19,7 @@ import AdminPayments from "../components/admin/AdminPayments";
 
 const NAV_ITEMS = [
   { path: "/admin", label: "⚙️ Ajustes", end: true },
+  { path: "/admin/control", label: "🎛️ Control" },
   { path: "/admin/interfaz", label: "🎨 Interfaz" },
   { path: "/admin/sesiones", label: "📂 Sesiones" },
   { path: "/admin/productos", label: "📦 Productos" },
@@ -28,7 +30,10 @@ const NAV_ITEMS = [
 export default function AdminPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const isControlPage = location.pathname.includes("/admin/control");
 
   const handleLogout = async () => {
     await logout();
@@ -89,9 +94,10 @@ export default function AdminPage() {
           <span className="font-bold text-gray-900">Admin Panel</span>
         </div>
 
-        <div className="p-4 lg:p-8 max-w-3xl">
+        <div className={`p-4 lg:p-8 ${isControlPage ? "max-w-6xl" : "max-w-3xl"}`}>
           <Routes>
             <Route index element={<AdminSettings />} />
+            <Route path="control" element={<AdminControl />} />
             <Route path="interfaz" element={<AdminInterface />} />
             <Route path="sesiones" element={<AdminSessions />} />
             <Route path="productos" element={<AdminProducts />} />
