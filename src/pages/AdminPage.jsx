@@ -11,6 +11,7 @@ import AdminProducts from "../components/admin/AdminProducts";
 import AdminInbox from "../components/admin/AdminInbox";
 import AdminPayments from "../components/admin/AdminPayments";
 import AdminControl from "../components/admin/AdminControl";
+import AdminInvoice from "../components/admin/AdminInvoice";
 
 // Lógica de "Logística" removida: 
 // 1. Borramos el import de AdminLogistics
@@ -20,6 +21,7 @@ import AdminControl from "../components/admin/AdminControl";
 const NAV_ITEMS = [
   { path: "/admin", label: "⚙️ Ajustes", end: true },
   { path: "/admin/control", label: "🎛️ Control" },
+  { path: "/admin/facturar", label: "🧾 Facturar" },
   { path: "/admin/interfaz", label: "🎨 Interfaz" },
   { path: "/admin/sesiones", label: "📂 Sesiones" },
   { path: "/admin/productos", label: "📦 Productos" },
@@ -33,7 +35,7 @@ export default function AdminPage() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isControlPage = location.pathname.includes("/admin/control");
+  const isWidePage = location.pathname.includes("/admin/control") || location.pathname.includes("/admin/facturar");
 
   const handleLogout = async () => {
     await logout();
@@ -94,10 +96,11 @@ export default function AdminPage() {
           <span className="font-bold text-gray-900">Admin Panel</span>
         </div>
 
-        <div className={`p-4 lg:p-8 ${isControlPage ? "max-w-6xl" : "max-w-3xl"}`}>
+        <div className={`p-4 lg:p-8 ${isWidePage ? "max-w-6xl" : "max-w-3xl"}`}>
           <Routes>
             <Route index element={<AdminSettings />} />
             <Route path="control" element={<AdminControl />} />
+            <Route path="facturar" element={<AdminInvoice />} />
             <Route path="interfaz" element={<AdminInterface />} />
             <Route path="sesiones" element={<AdminSessions />} />
             <Route path="productos" element={<AdminProducts />} />
