@@ -49,20 +49,54 @@ export default function AdminInvoice() {
     return unsub;
   }, [calendarMonth]);
 
-  const filtered = search.trim() ? products.filter(p => p.name?.toLowerCase().includes(search.toLowerCase())).slice(0,6) : [];
+  const filtered = search.trim() ? products.filter(p => p.name?.toLowerCase().includes(search.toLowerCase())).slice(0,8) : [];
 
-  const addItem = (product) => {
+  // Expand products with variants into individual selectable rows
+  const expandedResults = filtered.flatMap(p => {
+    if (p.variants?.length) {
+      return p.variants.map(v => ({
+        product: p,
+        variantId: v.id,
+        variantLabel: v.label,
+        variantStock: v.stock || 0,
+        displayName: `${p.name} — ${v.label}`,
+        uniqueKey: `${p.id}__${v.id}`,
+        price: p.price,
+        image: p.images?.[0] || "",
+      }));
+    }
+    return [{
+      product: p,
+      variantId: null,
+      variantLabel: null,
+      variantStock: p.totalStock ?? 0,
+      displayName: p.name,
+      uniqueKey: p.id,
+      price: p.price,
+      image: p.images?.[0] || "",
+    }];
+  });
+
+  const addItem = (item) => {
     setInvoiceItems(prev => {
-      const ex = prev.find(i => i.productId === product.id);
-      if (ex) return prev.map(i => i.productId === product.id ? {...i, qty: i.qty+1} : i);
-      return [...prev, { productId: product.id, name: product.name, price: product.price, image: product.images?.[0]||"", qty: 1 }];
+      const ex = prev.find(i => i.uniqueKey === item.uniqueKey);
+      if (ex) return prev.map(i => i.uniqueKey === item.uniqueKey ? {...i, qty: i.qty+1} : i);
+      return [...prev, {
+        uniqueKey: item.uniqueKey,
+        productId: item.product.id,
+        variantId: item.variantId,
+        name: item.displayName,
+        price: item.price,
+        image: item.image,
+        qty: 1,
+      }];
     });
     setSearch("");
-    toast.success(`+ ${product.name}`);
+    toast.success(`+ ${item.displayName}`);
   };
 
-  const updateQty = (id, qty) => { if (qty < 1) return removeItem(id); setInvoiceItems(p => p.map(i => i.productId===id ? {...i, qty} : i)); };
-  const removeItem = (id) => setInvoiceItems(p => p.filter(i => i.productId !== id));
+  const updateQty = (key, qty) => { if (qty < 1) return removeItem(key); setInvoiceItems(p => p.map(i => i.uniqueKey===key ? {...i, qty} : i)); };
+  const removeItem = (key) => setInvoiceItems(p => p.filter(i => i.uniqueKey !== key));
   const invoiceTotal = invoiceItems.reduce((s,i) => s + i.price*i.qty, 0);
   const totalItems = invoiceItems.reduce((s,i) => s + i.qty, 0);
 
@@ -77,10 +111,28 @@ export default function AdminInvoice() {
         paymentMethod, date: toDateStr(now), dayOfWeek: DAYS_ES[now.getDay()],
         time: formatTime(now), createdAt: serverTimestamp(),
       });
+      // Deduct stock for each item
       for (const item of invoiceItems) {
         const prod = products.find(p => p.id === item.productId);
-        if (prod && !prod.variants?.length) {
-          await updateDoc(doc(db, "products", item.productId), { totalStock: Math.max(0, (prod.totalStock||0) - item.qty) });
+        if (!prod) continue;
+
+        if (item.variantId && prod.variants?.length) {
+          // Update stock of the specific variant
+          const updatedVariants = prod.variants.map(v =>
+            v.id === item.variantId
+              ? { ...v, stock: Math.max(0, (v.stock || 0) - item.qty) }
+              : v
+          );
+          const newTotalStock = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
+          await updateDoc(doc(db, "products", item.productId), {
+            variants: updatedVariants,
+            totalStock: newTotalStock,
+          });
+        } else if (!prod.variants?.length) {
+          // Product without variants — deduct from totalStock
+          await updateDoc(doc(db, "products", item.productId), {
+            totalStock: Math.max(0, (prod.totalStock || 0) - item.qty),
+          });
         }
       }
       toast.success("✅ Factura registrada");
@@ -166,20 +218,19 @@ export default function AdminInvoice() {
               {/* Resultados */}
               {search.trim() && (
                 <div className="mt-3 max-h-[50vh] overflow-y-auto divide-y divide-gray-50 border border-gray-50 rounded-xl">
-                  {filtered.length === 0 ? (
+                  {expandedResults.length === 0 ? (
                     <p className="py-6 text-center text-xs text-gray-400 font-semibold">Sin resultados para "{search}"</p>
-                  ) : filtered.map(p => {
-                    const stock = p.variants?.length ? p.variants.reduce((s,v)=>s+(v.stock||0),0) : (p.totalStock??0);
-                    const added = invoiceItems.find(i => i.productId===p.id);
+                  ) : expandedResults.map(item => {
+                    const added = invoiceItems.find(i => i.uniqueKey === item.uniqueKey);
                     return (
-                      <button key={p.id} onClick={() => addItem(p)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-green-50/60 transition-colors text-left group">
+                      <button key={item.uniqueKey} onClick={() => addItem(item)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-green-50/60 transition-colors text-left group">
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                          {p.images?.[0] ? <img src={p.images[0]} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-gray-300 text-xs">📦</span>}
+                          {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-gray-300 text-xs">📦</span>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-800 truncate">{p.name}</p>
-                          <span className="text-[10px] font-black text-green-600">${p.price}</span>
-                          <span className="text-[10px] text-gray-300 ml-1">· {stock} stock</span>
+                          <p className="text-xs font-bold text-gray-800 truncate">{item.displayName}</p>
+                          <span className="text-[10px] font-black text-green-600">${item.price}</span>
+                          <span className="text-[10px] text-gray-300 ml-1">· {item.variantStock} stock</span>
                         </div>
                         {added
                           ? <span className="text-[9px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-lg">✓ x{added.qty}</span>
@@ -207,7 +258,7 @@ export default function AdminInvoice() {
               ) : (
                 <div className="divide-y divide-gray-50">
                   {invoiceItems.map(item => (
-                    <div key={item.productId} className="flex items-center gap-2.5 px-4 py-2.5">
+                    <div key={item.uniqueKey} className="flex items-center gap-2.5 px-4 py-2.5">
                       <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                         {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-gray-300 text-[10px]">📦</span>}
                       </div>
@@ -216,12 +267,12 @@ export default function AdminInvoice() {
                         <p className="text-[10px] text-gray-400">${item.price} c/u</p>
                       </div>
                       <div className="flex items-center bg-gray-50 rounded-lg border border-gray-100">
-                        <button onClick={()=>updateQty(item.productId,item.qty-1)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 font-bold text-sm">−</button>
+                        <button onClick={()=>updateQty(item.uniqueKey,item.qty-1)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 font-bold text-sm">−</button>
                         <span className="w-6 text-center text-xs font-black">{item.qty}</span>
-                        <button onClick={()=>updateQty(item.productId,item.qty+1)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-green-500 font-bold text-sm">+</button>
+                        <button onClick={()=>updateQty(item.uniqueKey,item.qty+1)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-green-500 font-bold text-sm">+</button>
                       </div>
                       <span className="text-xs font-black text-gray-800 w-14 text-right">${(item.price*item.qty).toFixed(2)}</span>
-                      <button onClick={()=>removeItem(item.productId)} className="text-gray-300 hover:text-red-500 text-xs ml-1">✕</button>
+                      <button onClick={()=>removeItem(item.uniqueKey)} className="text-gray-300 hover:text-red-500 text-xs ml-1">✕</button>
                     </div>
                   ))}
                 </div>
@@ -254,7 +305,7 @@ export default function AdminInvoice() {
               {/* Desglose */}
               <div className="px-4 py-3 border-t border-gray-50 space-y-1.5">
                 {invoiceItems.map(i => (
-                  <div key={i.productId} className="flex justify-between text-[11px]">
+                  <div key={i.uniqueKey} className="flex justify-between text-[11px]">
                     <span className="text-gray-500 truncate flex-1 mr-2">{i.name} x{i.qty}</span>
                     <span className="font-bold text-gray-700">${(i.price*i.qty).toFixed(2)}</span>
                   </div>
