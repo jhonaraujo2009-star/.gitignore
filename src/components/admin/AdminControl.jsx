@@ -29,6 +29,12 @@ export default function AdminControl() {
   const [newSessionName, setNewSessionName] = useState("");
   const [creatingSession, setCreatingSession] = useState(false);
 
+  // Variant inline editing
+  const [editingVariant, setEditingVariant] = useState(null); // { productId, variantIndex }
+  const [variantStockInput, setVariantStockInput] = useState("");
+  const [savingVariant, setSavingVariant] = useState(false);
+  const variantInputRef = useRef(null);
+
   // Load products & sessions (real-time)
   useEffect(() => {
     const unsubProducts = onSnapshot(collection(db, "products"), (snap) => {
@@ -174,6 +180,46 @@ export default function AdminControl() {
         return false;
       })
     : [];
+
+  // Start editing a specific variant
+  const startVariantEdit = (productId, variantIndex, currentStock) => {
+    setEditingVariant({ productId, variantIndex });
+    setVariantStockInput((currentStock ?? 0).toString());
+    setTimeout(() => variantInputRef.current?.select(), 50);
+  };
+
+  // Cancel variant editing
+  const cancelVariantEdit = () => {
+    setEditingVariant(null);
+    setVariantStockInput("");
+  };
+
+  // Save variant stock to Firestore
+  const saveVariantStock = async (productId, variantIndex, newStock) => {
+    setSavingVariant(true);
+    try {
+      const product = products.find((p) => p.id === productId);
+      if (!product || !product.variants?.[variantIndex]) {
+        toast.error("Variante no encontrada");
+        return;
+      }
+      const updatedVariants = product.variants.map((v, i) =>
+        i === variantIndex ? { ...v, stock: newStock } : v
+      );
+      const newTotalStock = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
+      await updateDoc(doc(db, "products", productId), {
+        variants: updatedVariants,
+        totalStock: newTotalStock,
+        updatedAt: serverTimestamp(),
+      });
+      toast.success(`Stock actualizado a ${newStock} ✅`);
+      cancelVariantEdit();
+    } catch {
+      toast.error("Error al actualizar variante");
+    } finally {
+      setSavingVariant(false);
+    }
+  };
 
   const getSessionName = (sessionId) => {
     const s = sessions.find((s) => s.id === sessionId);
@@ -480,23 +526,77 @@ export default function AdminControl() {
 
                           {/* Variants list */}
                           {p.variants?.length > 0 && (
-                            <div className="mt-2 space-y-1">
+                            <div className="mt-2 space-y-1.5">
                               <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                📋 {p.variants.length} variante{p.variants.length !== 1 ? "s" : ""}
+                                📋 {p.variants.length} variante{p.variants.length !== 1 ? "s" : ""} · <span className="text-gray-300">toca para editar stock</span>
                               </p>
                               <div className="flex flex-wrap gap-1.5">
                                 {p.variants.map((v, vi) => {
                                   const vLabel = v.label || v.name || `Variante ${vi + 1}`;
                                   const vStock = v.stock ?? 0;
                                   const isMatch = searchTerm.trim() && vLabel.toLowerCase().includes(searchTerm.toLowerCase());
+                                  const isEditingThis = editingVariant?.productId === p.id && editingVariant?.variantIndex === vi;
+
+                                  if (isEditingThis) {
+                                    return (
+                                      <div key={vi} className="flex items-center gap-1 bg-amber-50 border-2 border-amber-300 rounded-xl px-2 py-1.5 shadow-sm animate-pulse-once">
+                                        <span className="text-[10px] font-bold text-amber-700 mr-1">{vLabel}</span>
+                                        <button
+                                          onClick={() => {
+                                            const val = Math.max(0, (parseInt(variantStockInput) || 0) - 1);
+                                            setVariantStockInput(val.toString());
+                                          }}
+                                          className="w-6 h-6 rounded-lg bg-red-100 text-red-600 text-xs font-black flex items-center justify-center hover:bg-red-200 transition-colors active:scale-90"
+                                        >
+                                          −
+                                        </button>
+                                        <input
+                                          ref={variantInputRef}
+                                          type="number"
+                                          value={variantStockInput}
+                                          onChange={(e) => setVariantStockInput(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") saveVariantStock(p.id, vi, Math.max(0, parseInt(variantStockInput) || 0));
+                                            if (e.key === "Escape") cancelVariantEdit();
+                                          }}
+                                          className="w-12 text-center bg-white border border-amber-200 rounded-lg px-1 py-0.5 text-xs font-black text-amber-800 outline-none focus:ring-2 focus:ring-amber-300"
+                                        />
+                                        <button
+                                          onClick={() => {
+                                            const val = (parseInt(variantStockInput) || 0) + 1;
+                                            setVariantStockInput(val.toString());
+                                          }}
+                                          className="w-6 h-6 rounded-lg bg-green-100 text-green-600 text-xs font-black flex items-center justify-center hover:bg-green-200 transition-colors active:scale-90"
+                                        >
+                                          +
+                                        </button>
+                                        <button
+                                          onClick={() => saveVariantStock(p.id, vi, Math.max(0, parseInt(variantStockInput) || 0))}
+                                          disabled={savingVariant}
+                                          className="ml-1 px-2 py-1 rounded-lg bg-green-500 text-white text-[9px] font-black hover:bg-green-600 transition-colors disabled:opacity-50 active:scale-95"
+                                        >
+                                          {savingVariant ? "..." : "✓"}
+                                        </button>
+                                        <button
+                                          onClick={cancelVariantEdit}
+                                          className="px-1.5 py-1 rounded-lg bg-gray-200 text-gray-500 text-[9px] font-black hover:bg-gray-300 transition-colors active:scale-95"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    );
+                                  }
+
                                   return (
-                                    <span
+                                    <button
                                       key={vi}
-                                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                                      onClick={() => startVariantEdit(p.id, vi, vStock)}
+                                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border cursor-pointer transition-all hover:shadow-md hover:scale-105 active:scale-95 ${
                                         isMatch
-                                          ? "bg-blue-100 border-blue-300 text-blue-700 ring-2 ring-blue-200"
-                                          : "bg-gray-50 border-gray-100 text-gray-500"
+                                          ? "bg-blue-100 border-blue-300 text-blue-700 ring-2 ring-blue-200 hover:bg-blue-200"
+                                          : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700"
                                       }`}
+                                      title={`Editar stock de ${vLabel}`}
                                     >
                                       <span>{vLabel}</span>
                                       <span className={`text-[9px] font-black ${
@@ -507,7 +607,7 @@ export default function AdminControl() {
                                       {v.price != null && v.price !== p.price && (
                                         <span className="text-[9px] text-green-600 font-black">${v.price}</span>
                                       )}
-                                    </span>
+                                    </button>
                                   );
                                 })}
                               </div>
