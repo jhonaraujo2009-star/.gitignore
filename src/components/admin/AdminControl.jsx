@@ -163,11 +163,16 @@ export default function AdminControl() {
     }
   };
 
-  // Search filter
+  // Search filter — matches product name OR variant names
   const filteredProducts = searchTerm.trim()
-    ? products.filter((p) =>
-        p.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    ? products.filter((p) => {
+        const term = searchTerm.toLowerCase();
+        if (p.name?.toLowerCase().includes(term)) return true;
+        if (p.variants?.some((v) =>
+          (v.label || v.name || "").toLowerCase().includes(term)
+        )) return true;
+        return false;
+      })
     : [];
 
   const getSessionName = (sessionId) => {
@@ -472,6 +477,42 @@ export default function AdminControl() {
                               </>
                             )}
                           </div>
+
+                          {/* Variants list */}
+                          {p.variants?.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                📋 {p.variants.length} variante{p.variants.length !== 1 ? "s" : ""}
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {p.variants.map((v, vi) => {
+                                  const vLabel = v.label || v.name || `Variante ${vi + 1}`;
+                                  const vStock = v.stock ?? 0;
+                                  const isMatch = searchTerm.trim() && vLabel.toLowerCase().includes(searchTerm.toLowerCase());
+                                  return (
+                                    <span
+                                      key={vi}
+                                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                                        isMatch
+                                          ? "bg-blue-100 border-blue-300 text-blue-700 ring-2 ring-blue-200"
+                                          : "bg-gray-50 border-gray-100 text-gray-500"
+                                      }`}
+                                    >
+                                      <span>{vLabel}</span>
+                                      <span className={`text-[9px] font-black ${
+                                        vStock > 0 ? "text-green-500" : "text-red-400"
+                                      }`}>
+                                        ({vStock})
+                                      </span>
+                                      {v.price != null && v.price !== p.price && (
+                                        <span className="text-[9px] text-green-600 font-black">${v.price}</span>
+                                      )}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Actions */}
