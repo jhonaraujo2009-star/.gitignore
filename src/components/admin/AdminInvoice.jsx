@@ -77,10 +77,32 @@ export default function AdminInvoice() {
     }];
   });
 
+  // Helper: obtener stock disponible en tiempo real de un item
+  const getAvailableStock = (productId, variantId) => {
+    const prod = products.find(p => p.id === productId);
+    if (!prod) return 0;
+    if (variantId && prod.variants?.length) {
+      const v = prod.variants.find(v => v.id === variantId);
+      return v?.stock || 0;
+    }
+    return prod.totalStock ?? 0;
+  };
+
   const addItem = (item) => {
+    const stock = getAvailableStock(item.product.id, item.variantId);
     setInvoiceItems(prev => {
       const ex = prev.find(i => i.uniqueKey === item.uniqueKey);
-      if (ex) return prev.map(i => i.uniqueKey === item.uniqueKey ? {...i, qty: i.qty+1} : i);
+      if (ex) {
+        if (ex.qty >= stock) {
+          toast.error(`⚠️ Solo hay ${stock} en stock de "${item.displayName}"`);
+          return prev;
+        }
+        return prev.map(i => i.uniqueKey === item.uniqueKey ? {...i, qty: i.qty+1} : i);
+      }
+      if (stock <= 0) {
+        toast.error(`⚠️ "${item.displayName}" no tiene stock disponible`);
+        return prev;
+      }
       return [...prev, {
         uniqueKey: item.uniqueKey,
         productId: item.product.id,
@@ -95,13 +117,34 @@ export default function AdminInvoice() {
     toast.success(`+ ${item.displayName}`);
   };
 
-  const updateQty = (key, qty) => { if (qty < 1) return removeItem(key); setInvoiceItems(p => p.map(i => i.uniqueKey===key ? {...i, qty} : i)); };
+  const updateQty = (key, qty) => {
+    if (qty < 1) return removeItem(key);
+    const item = invoiceItems.find(i => i.uniqueKey === key);
+    if (item) {
+      const stock = getAvailableStock(item.productId, item.variantId);
+      if (qty > stock) {
+        toast.error(`⚠️ Solo hay ${stock} en stock`);
+        return;
+      }
+    }
+    setInvoiceItems(p => p.map(i => i.uniqueKey === key ? {...i, qty} : i));
+  };
   const removeItem = (key) => setInvoiceItems(p => p.filter(i => i.uniqueKey !== key));
   const invoiceTotal = invoiceItems.reduce((s,i) => s + i.price*i.qty, 0);
   const totalItems = invoiceItems.reduce((s,i) => s + i.qty, 0);
 
   const confirmInvoice = async () => {
     if (!invoiceItems.length) return toast.error("Agrega productos");
+
+    // 🔒 VALIDACIÓN DE STOCK ANTES DE FACTURAR
+    for (const item of invoiceItems) {
+      const stock = getAvailableStock(item.productId, item.variantId);
+      if (item.qty > stock) {
+        toast.error(`⛔ "${item.name}" tiene ${stock} en stock pero intentas vender ${item.qty}`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const now = new Date();
