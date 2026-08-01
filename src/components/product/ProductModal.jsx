@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { doc, updateDoc, increment, setDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { useApp } from "../../context/AppContext";
@@ -96,14 +96,18 @@ export default function ProductModal({ product, onClose }) {
     onClose();
   };
 
-  // 🌟 LÓGICA DEL ZOOM MAGNÉTICO 🌟
-  const handleMouseMove = (e) => {
-    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - left) / width) * 100;
-    const y = ((e.clientY - top) / height) * 100;
-    e.currentTarget.style.setProperty('--x', `${x}%`);
-    e.currentTarget.style.setProperty('--y', `${y}%`);
-  };
+  // 🌟 BOTÓN ATRÁS: Cierra el modal en lugar de salir de la app 🌟
+  useEffect(() => {
+    // Pushear un estado al historial para que "atrás" cierre el modal
+    window.history.pushState({ modal: true }, "");
+    const handlePopState = () => {
+      onClose();
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [onClose]);
 
   const stockPercentage = Math.min((availableStock / (hasVariants ? 50 : 100)) * 100, 100);
   const isLowStock = availableStock > 0 && availableStock <= 5;
@@ -127,16 +131,7 @@ export default function ProductModal({ product, onClose }) {
           {/* 🌟 CONTENEDOR DE LA IMAGEN CON ZOOM 🌟 */}
           <div className="relative mx-4 mt-4">
             <div 
-              className="relative aspect-[4/5] bg-gray-50 rounded-[2rem] overflow-hidden shadow-inner group cursor-crosshair touch-pan-y"
-              onMouseMove={handleMouseMove}
-              onTouchMove={(e) => {
-                const touch = e.touches[0];
-                const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-                const x = ((touch.clientX - left) / width) * 100;
-                const y = ((touch.clientY - top) / height) * 100;
-                e.currentTarget.style.setProperty('--x', `${x}%`);
-                e.currentTarget.style.setProperty('--y', `${y}%`);
-              }}
+              className="relative aspect-[4/5] bg-gray-50 rounded-[2rem] overflow-hidden shadow-inner"
             >
               {/* BADGE DE OFERTA EN GRANDE */}
               {hasDiscount && discountPercentage > 0 && (
@@ -153,7 +148,7 @@ export default function ProductModal({ product, onClose }) {
                 <img 
                   src={product.images[activeImage]} 
                   alt={product.name} 
-                  className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[2] sm:group-hover:scale-[2.5] active:scale-[2] origin-[var(--x,50%)_var(--y,50%)]" 
+                  className="w-full h-full object-cover" 
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-6xl opacity-50">✨</div>

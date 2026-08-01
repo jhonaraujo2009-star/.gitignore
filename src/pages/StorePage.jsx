@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import AnnouncementBar from "../components/layout/AnnouncementBar";
 import Header from "../components/layout/Header";
 import HeroBanner from "../components/layout/HeroBanner";
@@ -21,6 +21,19 @@ export default function StorePage() {
   const { bsPrice } = useApp();
 
   const showFloatingElements = !isOpen && !selectedProduct;
+
+  // Cerrar el modal: si se cierra por X o tap afuera, hacer history.back 
+  // para remover el state que empujó el modal
+  const closeProduct = useCallback(() => {
+    if (selectedProduct) {
+      setSelectedProduct(null);
+      // El popstate listener del modal ya lo manejará si se cierra por botón atrás
+      // Solo hacemos back si hay un state modal en el historial
+      if (window.history.state?.modal) {
+        window.history.back();
+      }
+    }
+  }, [selectedProduct]);
 
   return (
     <div className="min-h-screen bg-white pb-32">
@@ -48,7 +61,7 @@ export default function StorePage() {
       {selectedProduct && (
         <ProductModal
           product={selectedProduct}
-          onClose={() => setSelectedProduct(null)}
+          onClose={closeProduct}
         />
       )}
       
