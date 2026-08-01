@@ -90,6 +90,8 @@ export default function AdminInvoice() {
 
   const addItem = (item) => {
     const stock = getAvailableStock(item.product.id, item.variantId);
+    let added = false;
+
     setInvoiceItems(prev => {
       const ex = prev.find(i => i.uniqueKey === item.uniqueKey);
       if (ex) {
@@ -97,12 +99,14 @@ export default function AdminInvoice() {
           toast.error(`⚠️ Solo hay ${stock} en stock de "${item.displayName}"`);
           return prev;
         }
+        added = true;
         return prev.map(i => i.uniqueKey === item.uniqueKey ? {...i, qty: i.qty+1} : i);
       }
       if (stock <= 0) {
         toast.error(`⚠️ "${item.displayName}" no tiene stock disponible`);
         return prev;
       }
+      added = true;
       return [...prev, {
         uniqueKey: item.uniqueKey,
         productId: item.product.id,
@@ -114,7 +118,8 @@ export default function AdminInvoice() {
       }];
     });
     setSearch("");
-    toast.success(`+ ${item.displayName}`);
+    // Solo mostrar éxito si realmente se agregó
+    if (added) toast.success(`+ ${item.displayName}`);
   };
 
   const updateQty = (key, qty) => {
@@ -154,30 +159,45 @@ export default function AdminInvoice() {
         paymentMethod, date: toDateStr(now), dayOfWeek: DAYS_ES[now.getDay()],
         time: formatTime(now), createdAt: serverTimestamp(),
       });
-      // Deduct stock for each item
+
+      // 🔒 DESCUENTO AGRUPADO POR PRODUCTO
+      // Agrupar items por productId para hacer UNA SOLA escritura por producto
+      const itemsByProduct = {};
       for (const item of invoiceItems) {
-        const prod = products.find(p => p.id === item.productId);
+        if (!itemsByProduct[item.productId]) {
+          itemsByProduct[item.productId] = [];
+        }
+        itemsByProduct[item.productId].push(item);
+      }
+
+      for (const [productId, items] of Object.entries(itemsByProduct)) {
+        const prod = products.find(p => p.id === productId);
         if (!prod) continue;
 
-        if (item.variantId && prod.variants?.length) {
-          // Update stock of the specific variant
-          const updatedVariants = prod.variants.map(v =>
-            v.id === item.variantId
-              ? { ...v, stock: Math.max(0, (v.stock || 0) - item.qty) }
-              : v
-          );
+        if (prod.variants?.length) {
+          // Producto CON variantes: aplicar TODOS los descuentos de variantes de una vez
+          const updatedVariants = prod.variants.map(v => {
+            // Buscar si hay algún item en la factura que descuenta esta variante
+            const matchingItem = items.find(i => i.variantId === v.id);
+            if (matchingItem) {
+              return { ...v, stock: Math.max(0, (v.stock || 0) - matchingItem.qty) };
+            }
+            return { ...v };
+          });
           const newTotalStock = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
-          await updateDoc(doc(db, "products", item.productId), {
+          await updateDoc(doc(db, "products", productId), {
             variants: updatedVariants,
             totalStock: newTotalStock,
           });
-        } else if (!prod.variants?.length) {
-          // Product without variants — deduct from totalStock
-          await updateDoc(doc(db, "products", item.productId), {
-            totalStock: Math.max(0, (prod.totalStock || 0) - item.qty),
+        } else {
+          // Producto SIN variantes: sumar todas las cantidades y descontar de una vez
+          const totalQty = items.reduce((s, i) => s + i.qty, 0);
+          await updateDoc(doc(db, "products", productId), {
+            totalStock: Math.max(0, (prod.totalStock || 0) - totalQty),
           });
         }
       }
+
       toast.success("✅ Factura registrada");
       setInvoiceItems([]); setCustomerName(""); setPaymentMethod("Efectivo");
     } catch(e) { console.error(e); toast.error("Error"); } finally { setSaving(false); }
