@@ -152,16 +152,7 @@ export default function AdminInvoice() {
 
     setSaving(true);
     try {
-      const now = new Date();
-      await addDoc(collection(db, "invoices"), {
-        items: invoiceItems, total: invoiceTotal,
-        customerName: customerName.trim() || "Cliente General",
-        paymentMethod, date: toDateStr(now), dayOfWeek: DAYS_ES[now.getDay()],
-        time: formatTime(now), createdAt: serverTimestamp(),
-      });
-
-      // 🔒 DESCUENTO AGRUPADO POR PRODUCTO
-      // Agrupar items por productId para hacer UNA SOLA escritura por producto
+      // 🔒 PASO 1: DESCONTAR STOCK PRIMERO (prioridad: stock siempre correcto)
       const itemsByProduct = {};
       for (const item of invoiceItems) {
         if (!itemsByProduct[item.productId]) {
@@ -175,9 +166,7 @@ export default function AdminInvoice() {
         if (!prod) continue;
 
         if (prod.variants?.length) {
-          // Producto CON variantes: aplicar TODOS los descuentos de variantes de una vez
           const updatedVariants = prod.variants.map(v => {
-            // Buscar si hay algún item en la factura que descuenta esta variante
             const matchingItem = items.find(i => i.variantId === v.id);
             if (matchingItem) {
               return { ...v, stock: Math.max(0, (v.stock || 0) - matchingItem.qty) };
@@ -190,7 +179,6 @@ export default function AdminInvoice() {
             totalStock: newTotalStock,
           });
         } else {
-          // Producto SIN variantes: sumar todas las cantidades y descontar de una vez
           const totalQty = items.reduce((s, i) => s + i.qty, 0);
           await updateDoc(doc(db, "products", productId), {
             totalStock: Math.max(0, (prod.totalStock || 0) - totalQty),
@@ -198,9 +186,18 @@ export default function AdminInvoice() {
         }
       }
 
+      // 🧾 PASO 2: GUARDAR LA FACTURA (stock ya fue descontado)
+      const now = new Date();
+      await addDoc(collection(db, "invoices"), {
+        items: invoiceItems, total: invoiceTotal,
+        customerName: customerName.trim() || "Cliente General",
+        paymentMethod, date: toDateStr(now), dayOfWeek: DAYS_ES[now.getDay()],
+        time: formatTime(now), createdAt: serverTimestamp(),
+      });
+
       toast.success("✅ Factura registrada");
       setInvoiceItems([]); setCustomerName(""); setPaymentMethod("Efectivo");
-    } catch(e) { console.error(e); toast.error("Error"); } finally { setSaving(false); }
+    } catch(e) { console.error(e); toast.error("Error al procesar"); } finally { setSaving(false); }
   };
 
   // Print invoice
