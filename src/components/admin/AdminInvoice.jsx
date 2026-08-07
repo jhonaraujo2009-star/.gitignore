@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  collection, addDoc, onSnapshot, query, orderBy, where, serverTimestamp, updateDoc, doc
+  collection, addDoc, onSnapshot, query, orderBy, where, serverTimestamp, updateDoc, doc, runTransaction
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { useApp } from "../../context/AppContext";
@@ -141,7 +141,7 @@ export default function AdminInvoice() {
   const confirmInvoice = async () => {
     if (!invoiceItems.length) return toast.error("Agrega productos");
 
-    // 🔒 VALIDACIÓN DE STOCK ANTES DE FACTURAR
+    // 🔒 Validación rápida local antes de intentar la transacción
     for (const item of invoiceItems) {
       const stock = getAvailableStock(item.productId, item.variantId);
       if (item.qty > stock) {
@@ -152,7 +152,7 @@ export default function AdminInvoice() {
 
     setSaving(true);
     try {
-      // 🔒 PASO 1: DESCONTAR STOCK PRIMERO (prioridad: stock siempre correcto)
+      // Agrupar items por producto
       const itemsByProduct = {};
       for (const item of invoiceItems) {
         if (!itemsByProduct[item.productId]) {
@@ -161,43 +161,88 @@ export default function AdminInvoice() {
         itemsByProduct[item.productId].push(item);
       }
 
-      for (const [productId, items] of Object.entries(itemsByProduct)) {
-        const prod = products.find(p => p.id === productId);
-        if (!prod) continue;
+      // 🔒 TRANSACCIÓN ATÓMICA: Lee stock real de Firebase, valida, descuenta y crea factura
+      // Si ALGO falla, NADA se aplica (todo o nada)
+      await runTransaction(db, async (transaction) => {
 
-        if (prod.variants?.length) {
-          const updatedVariants = prod.variants.map(v => {
-            const matchingItem = items.find(i => i.variantId === v.id);
-            if (matchingItem) {
-              return { ...v, stock: Math.max(0, (v.stock || 0) - matchingItem.qty) };
-            }
-            return { ...v };
-          });
-          const newTotalStock = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
-          await updateDoc(doc(db, "products", productId), {
-            variants: updatedVariants,
-            totalStock: newTotalStock,
-          });
-        } else {
-          const totalQty = items.reduce((s, i) => s + i.qty, 0);
-          await updateDoc(doc(db, "products", productId), {
-            totalStock: Math.max(0, (prod.totalStock || 0) - totalQty),
-          });
+        // ── PASO 1: LEER todos los productos REALES de Firebase (no del estado local) ──
+        const productSnapshots = {};
+        for (const productId of Object.keys(itemsByProduct)) {
+          const prodRef = doc(db, "products", productId);
+          const snap = await transaction.get(prodRef);
+          if (!snap.exists()) {
+            throw new Error(`⛔ El producto "${itemsByProduct[productId][0].name}" ya no existe en la base de datos. Puede que haya sido eliminado.`);
+          }
+          productSnapshots[productId] = { ref: prodRef, data: snap.data() };
         }
-      }
 
-      // 🧾 PASO 2: GUARDAR LA FACTURA (stock ya fue descontado)
-      const now = new Date();
-      await addDoc(collection(db, "invoices"), {
-        items: invoiceItems, total: invoiceTotal,
-        customerName: customerName.trim() || "Cliente General",
-        paymentMethod, date: toDateStr(now), dayOfWeek: DAYS_ES[now.getDay()],
-        time: formatTime(now), createdAt: serverTimestamp(),
+        // ── PASO 2: VALIDAR stock real contra cantidades a vender ──
+        for (const [productId, items] of Object.entries(itemsByProduct)) {
+          const prod = productSnapshots[productId].data;
+
+          if (prod.variants?.length) {
+            // Producto CON variantes: validar cada variante individualmente
+            for (const item of items) {
+              if (!item.variantId) continue;
+              const variant = prod.variants.find(v => v.id === item.variantId);
+              if (!variant) {
+                throw new Error(`⛔ La variante "${item.name}" ya no existe. Pudo haber sido editada o eliminada. Retira ese producto e intenta de nuevo.`);
+              }
+              if ((variant.stock || 0) < item.qty) {
+                throw new Error(`⛔ "${item.name}" solo tiene ${variant.stock || 0} en stock real, pero intentas vender ${item.qty}`);
+              }
+            }
+          } else {
+            // Producto SIN variantes: validar stock total
+            const totalQty = items.reduce((s, i) => s + i.qty, 0);
+            if ((prod.totalStock || 0) < totalQty) {
+              throw new Error(`⛔ "${items[0].name}" solo tiene ${prod.totalStock || 0} en stock real, pero intentas vender ${totalQty}`);
+            }
+          }
+        }
+
+        // ── PASO 3: DESCONTAR stock (dentro de la transacción = atómico) ──
+        for (const [productId, items] of Object.entries(itemsByProduct)) {
+          const { ref, data: prod } = productSnapshots[productId];
+
+          if (prod.variants?.length) {
+            const updatedVariants = prod.variants.map(v => {
+              const matchingItem = items.find(i => i.variantId === v.id);
+              if (matchingItem) {
+                return { ...v, stock: Math.max(0, (v.stock || 0) - matchingItem.qty) };
+              }
+              return { ...v };
+            });
+            const newTotalStock = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
+            transaction.update(ref, {
+              variants: updatedVariants,
+              totalStock: newTotalStock,
+            });
+          } else {
+            const totalQty = items.reduce((s, i) => s + i.qty, 0);
+            transaction.update(ref, {
+              totalStock: Math.max(0, (prod.totalStock || 0) - totalQty),
+            });
+          }
+        }
+
+        // ── PASO 4: CREAR la factura (dentro de la misma transacción) ──
+        const now = new Date();
+        const invoiceRef = doc(collection(db, "invoices"));
+        transaction.set(invoiceRef, {
+          items: invoiceItems, total: invoiceTotal,
+          customerName: customerName.trim() || "Cliente General",
+          paymentMethod, date: toDateStr(now), dayOfWeek: DAYS_ES[now.getDay()],
+          time: formatTime(now), createdAt: serverTimestamp(),
+        });
       });
 
-      toast.success("✅ Factura registrada");
+      toast.success("✅ Factura registrada y stock actualizado");
       setInvoiceItems([]); setCustomerName(""); setPaymentMethod("Efectivo");
-    } catch(e) { console.error(e); toast.error("Error al procesar"); } finally { setSaving(false); }
+    } catch(e) {
+      console.error("Error al facturar:", e);
+      toast.error(e.message || "Error al procesar la factura");
+    } finally { setSaving(false); }
   };
 
   // Print invoice
