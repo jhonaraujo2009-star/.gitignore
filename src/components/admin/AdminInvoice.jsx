@@ -248,6 +248,7 @@ export default function AdminInvoice() {
   // Print invoice
   const printInvoice = (sale) => {
     const w = window.open("","_blank","width=400,height=600");
+    if (!w) return toast.error("⚠️ El navegador bloqueó la ventana. Permite popups e intenta de nuevo.");
     const itemsHtml = sale.items?.map(i =>
       `<tr><td style="padding:4px 0;font-size:12px">${i.name}</td><td style="text-align:center;font-size:12px">${i.qty}</td><td style="text-align:right;font-size:12px">$${i.price.toFixed(2)}</td><td style="text-align:right;font-size:12px;font-weight:700">$${(i.price*i.qty).toFixed(2)}</td></tr>`
     ).join("") || "";

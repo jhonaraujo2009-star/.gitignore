@@ -112,6 +112,13 @@ export default function AdminControl() {
       };
 
       if (editingId) {
+        // Si el producto tiene variantes, NO sobrescribir totalStock con el valor del form
+        // porque el stock real está en cada variante individual
+        const existingProduct = products.find(p => p.id === editingId);
+        if (existingProduct?.variants?.length) {
+          // Mantener las variantes y recalcular totalStock desde ellas
+          data.totalStock = existingProduct.variants.reduce((s, v) => s + (v.stock || 0), 0);
+        }
         await updateDoc(doc(db, "products", editingId), data);
         toast.success("Producto actualizado ✅");
         setEditingId(null);
