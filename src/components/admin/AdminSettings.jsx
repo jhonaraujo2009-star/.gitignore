@@ -44,6 +44,7 @@ export default function AdminSettings() {
     formData.append("upload_preset", "tienda_maquillaje"); 
     try {
       const res = await fetch("https://api.cloudinary.com/v1_1/dp3abweme/image/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Error en Cloudinary");
       const data = await res.json();
       setForm(prev => ({ ...prev, [category]: { ...prev[category], [type]: data.secure_url } }));
       toast.success("Logo subido con éxito");

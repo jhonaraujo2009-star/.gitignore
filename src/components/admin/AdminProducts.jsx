@@ -87,6 +87,7 @@ function ProductForm({ sessions, product, onClose }) {
             "https://api.cloudinary.com/v1_1/dp3abweme/image/upload", 
             { method: "POST", body: formData }
           );
+          if (!res.ok) throw new Error("Error en Cloudinary");
           const data = await res.json();
           return data.secure_url;
         })

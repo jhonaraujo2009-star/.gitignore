@@ -22,7 +22,7 @@ export default function AdminSessions() {
   }, []);
 
   const addSession = async () => {
-    if (!newName.trim()) return;
+    if (!newName.trim() || adding) return;
     setAdding(true);
     try {
       await addDoc(collection(db, "sessions"), {

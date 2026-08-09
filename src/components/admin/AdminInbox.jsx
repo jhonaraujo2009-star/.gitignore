@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  collection, onSnapshot, query, orderBy, updateDoc, doc, getDocs, runTransaction, deleteDoc
+  collection, onSnapshot, query, orderBy, updateDoc, doc, getDocs, runTransaction, deleteDoc, serverTimestamp
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import toast from "react-hot-toast";
@@ -153,7 +153,7 @@ export default function AdminInbox() {
     if (!text?.trim()) return;
     setSaving(prev => ({ ...prev, [id]: true }));
     try {
-      await updateDoc(doc(db, "questions", id), { adminReply: text, adminRepliedAt: new Date(), isPublic: true });
+      await updateDoc(doc(db, "questions", id), { adminReply: text, adminRepliedAt: serverTimestamp(), isPublic: true });
       setReplyText(prev => ({ ...prev, [id]: "" }));
       toast.success("Respuesta enviada ✅");
     } catch (e) {
@@ -166,7 +166,7 @@ export default function AdminInbox() {
     if (!text?.trim() || !selectedProduct) return;
     setSaving(prev => ({ ...prev, [commentId]: true }));
     try {
-      await updateDoc(doc(db, "products", selectedProduct, "comments", commentId), { adminReply: text, adminRepliedAt: new Date() });
+      await updateDoc(doc(db, "products", selectedProduct, "comments", commentId), { adminReply: text, adminRepliedAt: serverTimestamp() });
       setReplyText(prev => ({ ...prev, [commentId]: "" }));
       toast.success("Respuesta enviada ✅");
     } catch (e) {
@@ -219,7 +219,7 @@ export default function AdminInbox() {
                 </div>
                 <div className="px-4 pb-4 flex gap-2">
                   <button onClick={() => confirmOrder(order)} className="flex-1 bg-black text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Confirmar Pago</button>
-                  <button onClick={async () => { if (!confirm('¿Eliminar este pedido permanentemente?')) return; await deleteDoc(doc(db, "orders", order.id)); toast.success('Pedido eliminado'); }} className="px-4 bg-red-50 text-red-500 rounded-xl text-[10px] font-black">Eliminar</button>
+                  <button onClick={async () => { if (!confirm('¿Eliminar este pedido permanentemente?')) return; try { await deleteDoc(doc(db, "orders", order.id)); toast.success('Pedido eliminado'); } catch { toast.error('Error al eliminar pedido'); } }} className="px-4 bg-red-50 text-red-500 rounded-xl text-[10px] font-black">Eliminar</button>
                 </div>
               </div>
             ))
