@@ -289,7 +289,7 @@ export default function AdminProducts() {
 
   // 🔍 LÓGICA DE BÚSQUEDA INTELIGENTE
   const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    p.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const groupedProducts = sessions.map(session => ({

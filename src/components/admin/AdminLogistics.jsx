@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs
+  collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs, query, where
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../../config/firebase";
@@ -55,12 +55,23 @@ export default function AdminLogistics() {
       toast.error("Completa código y valor");
       return;
     }
+    const couponValue = parseFloat(newCoupon.value);
+    if (isNaN(couponValue) || couponValue <= 0) {
+      toast.error('El valor del cupón debe ser mayor a 0');
+      return;
+    }
+    const codeToCheck = newCoupon.code.toUpperCase().trim();
+    const existingCoupons = await getDocs(query(collection(db, 'coupons'), where('code', '==', codeToCheck)));
+    if (!existingCoupons.empty) {
+      toast.error('Ya existe un cupón con ese código');
+      return;
+    }
     setSavingCoupon(true);
     try {
       await addDoc(collection(db, "coupons"), {
-        code: newCoupon.code.toUpperCase().trim(),
+        code: codeToCheck,
         type: newCoupon.type,
-        value: parseFloat(newCoupon.value),
+        value: couponValue,
         active: true,
         usageCount: 0,
         createdAt: serverTimestamp(),
@@ -75,13 +86,21 @@ export default function AdminLogistics() {
   };
 
   const toggleCoupon = async (id, active) => {
-    await updateDoc(doc(db, "coupons", id), { active: !active });
+    try {
+      await updateDoc(doc(db, "coupons", id), { active: !active });
+    } catch {
+      toast.error('Error al actualizar cupón');
+    }
   };
 
   const deleteCoupon = async (id) => {
     if (!confirm("¿Eliminar cupón?")) return;
-    await deleteDoc(doc(db, "coupons", id));
-    toast.success("Cupón eliminado");
+    try {
+      await deleteDoc(doc(db, "coupons", id));
+      toast.success("Cupón eliminado");
+    } catch {
+      toast.error('Error al eliminar cupón');
+    }
   };
 
   return (

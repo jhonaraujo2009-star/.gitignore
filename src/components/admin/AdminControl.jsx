@@ -102,19 +102,29 @@ export default function AdminControl() {
     }
     setSaving(true);
     try {
+      const existingProduct = editingId ? products.find(p => p.id === editingId) : null;
+      const existingImages = existingProduct?.images || [];
+      let finalImages;
+      if (!form.image) {
+        finalImages = existingImages;
+      } else if (existingImages.includes(form.image)) {
+        finalImages = existingImages;
+      } else {
+        finalImages = [form.image, ...existingImages.slice(1)];
+      }
+
       const data = {
         name: form.name.trim(),
         price: parseFloat(form.price),
         totalStock: parseInt(form.stock) || 0,
         sessionId: form.sessionId || "",
-        images: form.image ? [form.image] : [],
+        images: finalImages,
         updatedAt: serverTimestamp(),
       };
 
       if (editingId) {
         // Si el producto tiene variantes, NO sobrescribir totalStock con el valor del form
         // porque el stock real está en cada variante individual
-        const existingProduct = products.find(p => p.id === editingId);
         if (existingProduct?.variants?.length) {
           // Mantener las variantes y recalcular totalStock desde ellas
           data.totalStock = existingProduct.variants.reduce((s, v) => s + (v.stock || 0), 0);

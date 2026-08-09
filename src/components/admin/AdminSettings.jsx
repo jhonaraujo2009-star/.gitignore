@@ -55,9 +55,14 @@ export default function AdminSettings() {
   };
 
   const handleSave = async () => {
+    const rate = parseFloat(form.exchangeRate);
+    if (!rate || rate <= 0) {
+      toast.error("La tasa de cambio debe ser mayor a 0");
+      return;
+    }
     setSaving(true);
     try {
-      await updateSettings({ ...form, exchangeRate: parseFloat(form.exchangeRate) || 0 });
+      await updateSettings({ ...form, exchangeRate: rate });
       toast.success("Sistema Sincronizado ✅");
     } catch {
       toast.error("Error al guardar");

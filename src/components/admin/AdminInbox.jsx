@@ -57,15 +57,17 @@ export default function AdminInbox() {
 
   const editItemQty = async (orderId, itemIndex, currentQty) => {
     const newQty = prompt("Nueva cantidad para este producto:", currentQty);
-    if (newQty === null || isNaN(newQty) || newQty < 0) return;
+    if (newQty === null) return;
+    const parsedQty = parseInt(newQty);
+    if (isNaN(parsedQty) || parsedQty < 0) return;
     
     const order = orders.find(o => o.id === orderId);
     const updatedItems = [...order.items];
     
-    if (parseInt(newQty) === 0) { 
+    if (parsedQty === 0) { 
       updatedItems.splice(itemIndex, 1); 
     } else { 
-      updatedItems[itemIndex].qty = parseInt(newQty); 
+      updatedItems[itemIndex] = { ...updatedItems[itemIndex], qty: parsedQty };
     }
     
     const newTotal = updatedItems.reduce((acc, item) => acc + (item.price * item.qty), 0);
@@ -84,42 +86,55 @@ export default function AdminInbox() {
 
     try {
       await runTransaction(db, async (transaction) => {
+        const groupedItems = order.items.reduce((acc, item) => {
+          if (!acc[item.id]) acc[item.id] = [];
+          acc[item.id].push(item);
+          return acc;
+        }, {});
+
         const leerProductos = [];
-        for (const item of order.items) {
-          const pRef = doc(db, "products", item.id);
+        for (const productId of Object.keys(groupedItems)) {
+          const pRef = doc(db, "products", productId);
           const pDoc = await transaction.get(pRef);
-          leerProductos.push({ doc: pDoc, ref: pRef, item: item });
+          leerProductos.push({ doc: pDoc, ref: pRef, items: groupedItems[productId] });
         }
 
         for (const producto of leerProductos) {
           if (producto.doc.exists()) {
             const currentData = producto.doc.data();
             let updateData = {};
+            let currentVariants = currentData.variants ? [...currentData.variants] : [];
+            let totalStock = currentData.totalStock || 0;
+            let salesCount = currentData.salesCount || 0;
 
-            // CORRECCIÓN: Busca la variante sin importar si viene como texto u objeto
-            if (currentData.variants && currentData.variants.length > 0 && producto.item.variant) {
-              const labelABuscar = typeof producto.item.variant === 'object' 
-                ? producto.item.variant.label 
-                : producto.item.variant;
+            for (const item of producto.items) {
+              if (currentVariants.length > 0 && item.variant) {
+                const labelABuscar = typeof item.variant === 'object' 
+                  ? item.variant.label 
+                  : item.variant;
 
-              const newVariants = currentData.variants.map(v => {
-                if (v.label === labelABuscar) {
-                  return { ...v, stock: Math.max(0, (v.stock || 0) - producto.item.qty) };
-                }
-                return v;
-              });
-              
-              updateData = { 
-                variants: newVariants,
-                totalStock: newVariants.reduce((acc, v) => acc + (v.stock || 0), 0) 
-              };
-            } else {
-              updateData = { 
-                totalStock: Math.max(0, (currentData.totalStock || 0) - producto.item.qty) 
-              };
+                currentVariants = currentVariants.map(v => {
+                  if (v.label === labelABuscar) {
+                    return { ...v, stock: Math.max(0, (v.stock || 0) - item.qty) };
+                  }
+                  return v;
+                });
+              } else {
+                totalStock = Math.max(0, totalStock - item.qty);
+              }
+              salesCount += item.qty;
             }
 
-            updateData.salesCount = (currentData.salesCount || 0) + producto.item.qty;
+            if (currentData.variants && currentData.variants.length > 0) {
+              updateData = { 
+                variants: currentVariants,
+                totalStock: currentVariants.reduce((acc, v) => acc + (v.stock || 0), 0) 
+              };
+            } else {
+              updateData = { totalStock };
+            }
+
+            updateData.salesCount = salesCount;
             transaction.update(producto.ref, updateData);
           }
         }
@@ -136,23 +151,27 @@ export default function AdminInbox() {
   const replyQuestion = async (id) => {
     const text = replyText[id];
     if (!text?.trim()) return;
-    setSaving({ ...saving, [id]: true });
+    setSaving(prev => ({ ...prev, [id]: true }));
     try {
       await updateDoc(doc(db, "questions", id), { adminReply: text, adminRepliedAt: new Date(), isPublic: true });
-      setReplyText({ ...replyText, [id]: "" });
+      setReplyText(prev => ({ ...prev, [id]: "" }));
       toast.success("Respuesta enviada ✅");
-    } finally { setSaving({ ...saving, [id]: false }); }
+    } catch (e) {
+      toast.error('Error al responder');
+    } finally { setSaving(prev => ({ ...prev, [id]: false })); }
   };
 
   const replyComment = async (commentId) => {
     const text = replyText[commentId];
     if (!text?.trim() || !selectedProduct) return;
-    setSaving({ ...saving, [commentId]: true });
+    setSaving(prev => ({ ...prev, [commentId]: true }));
     try {
       await updateDoc(doc(db, "products", selectedProduct, "comments", commentId), { adminReply: text, adminRepliedAt: new Date() });
-      setReplyText({ ...replyText, [commentId]: "" });
+      setReplyText(prev => ({ ...prev, [commentId]: "" }));
       toast.success("Respuesta enviada ✅");
-    } finally { setSaving({ ...saving, [commentId]: false }); }
+    } catch (e) {
+      toast.error('Error al responder');
+    } finally { setSaving(prev => ({ ...prev, [commentId]: false })); }
   };
 
   return (
@@ -200,7 +219,7 @@ export default function AdminInbox() {
                 </div>
                 <div className="px-4 pb-4 flex gap-2">
                   <button onClick={() => confirmOrder(order)} className="flex-1 bg-black text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Confirmar Pago</button>
-                  <button onClick={() => deleteDoc(doc(db, "orders", order.id))} className="px-4 bg-red-50 text-red-500 rounded-xl text-[10px] font-black">Eliminar</button>
+                  <button onClick={async () => { if (!confirm('¿Eliminar este pedido permanentemente?')) return; await deleteDoc(doc(db, "orders", order.id)); toast.success('Pedido eliminado'); }} className="px-4 bg-red-50 text-red-500 rounded-xl text-[10px] font-black">Eliminar</button>
                 </div>
               </div>
             ))
