@@ -201,7 +201,9 @@ export default function AdminInvoice() {
           }
         }
 
-        // ── PASO 3: DESCONTAR stock (dentro de la transacción = atómico) ──
+        // ── PASO 3: DESCONTAR stock y calcular stock restante ──
+        const stockAfterSaleMap = {}; // { uniqueKey: stockRestante }
+
         for (const [productId, items] of Object.entries(itemsByProduct)) {
           const { ref, data: prod } = productSnapshots[productId];
 
@@ -209,7 +211,9 @@ export default function AdminInvoice() {
             const updatedVariants = prod.variants.map(v => {
               const matchingItem = items.find(i => i.variantId === v.id);
               if (matchingItem) {
-                return { ...v, stock: Math.max(0, (v.stock || 0) - matchingItem.qty) };
+                const newStock = Math.max(0, (v.stock || 0) - matchingItem.qty);
+                stockAfterSaleMap[matchingItem.uniqueKey] = newStock;
+                return { ...v, stock: newStock };
               }
               return { ...v };
             });
@@ -220,17 +224,26 @@ export default function AdminInvoice() {
             });
           } else {
             const totalQty = items.reduce((s, i) => s + i.qty, 0);
+            const newStock = Math.max(0, (prod.totalStock || 0) - totalQty);
+            for (const item of items) {
+              stockAfterSaleMap[item.uniqueKey] = newStock;
+            }
             transaction.update(ref, {
-              totalStock: Math.max(0, (prod.totalStock || 0) - totalQty),
+              totalStock: newStock,
             });
           }
         }
 
-        // ── PASO 4: CREAR la factura (dentro de la misma transacción) ──
+        // ── PASO 4: CREAR la factura con stock restante en cada item ──
+        const enrichedItems = invoiceItems.map(item => ({
+          ...item,
+          stockAfterSale: stockAfterSaleMap[item.uniqueKey] ?? null,
+        }));
+
         const now = new Date();
         const invoiceRef = doc(collection(db, "invoices"));
         transaction.set(invoiceRef, {
-          items: invoiceItems, total: invoiceTotal,
+          items: enrichedItems, total: invoiceTotal,
           customerName: customerName.trim() || "Cliente General",
           paymentMethod, date: toDateStr(now), dayOfWeek: DAYS_ES[now.getDay()],
           time: formatTime(now), createdAt: serverTimestamp(),
@@ -528,6 +541,7 @@ export default function AdminInvoice() {
                             <th className="text-center py-1.5 w-12">Cant</th>
                             <th className="text-right py-1.5 w-16">P.Unit</th>
                             <th className="text-right py-1.5 w-16">Subtotal</th>
+                            <th className="text-center py-1.5 w-16">Quedan</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -537,6 +551,15 @@ export default function AdminInvoice() {
                               <td className="py-1.5 text-xs text-center text-gray-500">{item.qty}</td>
                               <td className="py-1.5 text-xs text-right text-gray-400">${item.price.toFixed(2)}</td>
                               <td className="py-1.5 text-xs text-right font-bold text-gray-800">${(item.price*item.qty).toFixed(2)}</td>
+                              <td className="py-1.5 text-xs text-center">
+                                {item.stockAfterSale != null ? (
+                                  <span className={`font-bold px-1.5 py-0.5 rounded-md ${item.stockAfterSale <= 3 ? 'bg-red-100 text-red-600' : item.stockAfterSale <= 10 ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'}`}>
+                                    {item.stockAfterSale}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
