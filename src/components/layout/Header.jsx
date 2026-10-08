@@ -4,6 +4,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
+import VisitCounter from "./VisitCounter";
 
 // 🌟 MAGIA: Añadimos onFilter aquí arriba sin borrar onProductClick
 export default function Header({ onProductClick, onFilter }) {
@@ -139,8 +140,11 @@ export default function Header({ onProductClick, onFilter }) {
         </div>
 
         {/* Botonera */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
           
+          {/* Contador de Visitas Premium */}
+          <VisitCounter />
+
           {/* Botón Lupa */}
           <button 
             onClick={() => setSearchOpen(true)} 
