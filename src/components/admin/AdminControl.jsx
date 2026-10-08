@@ -5,6 +5,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import toast from "react-hot-toast";
+import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 // ==========================================
 // ADMIN CONTROL — Gestión Rápida de Inventario
@@ -70,20 +71,14 @@ export default function AdminControl() {
     }
   };
 
-  // Image upload to Cloudinary
+  // Image upload to Cloudinary (con compresión)
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", "tienda_maquillaje");
-      const res = await fetch("https://api.cloudinary.com/v1_1/dp3abweme/image/upload", {
-        method: "POST", body: formData
-      });
-      const data = await res.json();
-      setForm((prev) => ({ ...prev, image: data.secure_url }));
+      const url = await compressAndUpload(file);
+      setForm((prev) => ({ ...prev, image: url }));
       toast.success("Imagen subida ✅");
     } catch {
       toast.error("Error al subir imagen");

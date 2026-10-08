@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
+import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 export default function AdminSettings() {
   const { settings, updateSettings } = useApp();
@@ -39,14 +40,9 @@ export default function AdminSettings() {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(type);
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", "tienda_maquillaje"); 
     try {
-      const res = await fetch("https://api.cloudinary.com/v1_1/dp3abweme/image/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Error en Cloudinary");
-      const data = await res.json();
-      setForm(prev => ({ ...prev, [category]: { ...prev[category], [type]: data.secure_url } }));
+      const url = await compressAndUpload(file);
+      setForm(prev => ({ ...prev, [category]: { ...prev[category], [type]: url } }));
       toast.success("Logo subido con éxito");
     } catch {
       toast.error("Error al subir");

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import AnnouncementBar from "../components/layout/AnnouncementBar";
 import Header from "../components/layout/Header";
 import HeroBanner from "../components/layout/HeroBanner";
@@ -20,7 +20,56 @@ export default function StorePage() {
   const { itemCount, total, setIsOpen, isOpen } = useCart();
   const { bsPrice } = useApp();
 
+  // Ref para evitar push duplicados al historial
+  const isPopStateNav = useRef(false);
+
   const showFloatingElements = !isOpen && !selectedProduct;
+
+  // Wrapper para cambiar filtro: empuja estado al historial y hace scroll arriba
+  const handleFilter = useCallback((filter) => {
+    const newFilter = filter || "all";
+
+    // Si la navegación viene del popstate, no empujamos de nuevo al historial
+    if (isPopStateNav.current) {
+      isPopStateNav.current = false;
+      setActiveFilter(newFilter);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    // Solo empujamos al historial si estamos cambiando de filtro
+    if (newFilter !== activeFilter) {
+      window.history.pushState({ filter: newFilter }, "");
+    }
+
+    setActiveFilter(newFilter);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeFilter]);
+
+  // Listener del botón atrás: navega entre filtros en vez de salir de la app
+  useEffect(() => {
+    // Guardar el estado inicial en el historial (reemplazamos, no empujamos)
+    window.history.replaceState({ filter: "all" }, "");
+
+    const handlePopState = (e) => {
+      // Si hay un modal abierto, el modal ya maneja su propio popstate
+      if (selectedProduct) return;
+
+      const state = e.state;
+      if (state?.filter) {
+        // Navegar al filtro anterior
+        isPopStateNav.current = true;
+        handleFilter(state.filter);
+      } else {
+        // Si no hay estado de filtro, volver a "all" (inicio)
+        isPopStateNav.current = true;
+        handleFilter("all");
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [selectedProduct, handleFilter]);
 
   // Cerrar el modal: si se cierra por X o tap afuera, hacer history.back 
   // para remover el state que empujó el modal
@@ -40,18 +89,18 @@ export default function StorePage() {
       <div className="fixed top-0 left-0 right-0 z-40">
         <AnnouncementBar />
         {/* 🌟 MAGIA: Le pasamos 'onFilter' al Header para abrir Favoritos */}
-        <Header onProductClick={setSelectedProduct} onFilter={setActiveFilter} />
+        <Header onProductClick={setSelectedProduct} onFilter={handleFilter} />
       </div>
 
       <div className="pt-28">
         <div className="max-w-md mx-auto">
           <HeroBanner activeFilter={activeFilter} />
-          <QuickButtons onFilter={setActiveFilter} />
+          <QuickButtons onFilter={handleFilter} />
           
           <ProductCatalog
             activeFilter={activeFilter}
             onProductClick={setSelectedProduct}
-            onFilter={setActiveFilter} 
+            onFilter={handleFilter} 
           />
           
           <Footer />

@@ -4,6 +4,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import toast from "react-hot-toast";
+import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 // ==========================================
 // 1. VARIANT MANAGER
@@ -78,19 +79,7 @@ function ProductForm({ sessions, product, onClose }) {
     
     try {
       const urls = await Promise.all(
-        files.map(async (f) => {
-          const formData = new FormData();
-          formData.append("file", f);
-          formData.append("upload_preset", "tienda_maquillaje"); 
-
-          const res = await fetch(
-            "https://api.cloudinary.com/v1_1/dp3abweme/image/upload", 
-            { method: "POST", body: formData }
-          );
-          if (!res.ok) throw new Error("Error en Cloudinary");
-          const data = await res.json();
-          return data.secure_url;
-        })
+        files.map((f) => compressAndUpload(f))
       );
       setForm((prev) => ({ ...prev, images: [...prev.images, ...urls] }));
       toast.success("Imágenes listas");

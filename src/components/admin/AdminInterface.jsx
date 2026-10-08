@@ -2,6 +2,7 @@ import { useState } from "react";
 // Eliminamos las importaciones de Firebase Storage que daban error
 import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
+import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 export default function AdminInterface() {
   const { settings, updateSettings } = useApp();
@@ -15,31 +16,14 @@ export default function AdminInterface() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // NUEVA FUNCIÓN PARA SUBIR A CLOUDINARY
-  const uploadToCloudinary = async (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", "tienda_maquillaje"); // Tu preset configurado
-
-    const res = await fetch(
-      "https://api.cloudinary.com/v1_1/dp3abweme/image/upload", // Tu Cloud Name
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-
-    if (!res.ok) throw new Error("Error en la subida");
-    const data = await res.json();
-    return data.secure_url;
-  };
+  // Subida a Cloudinary con compresión (función centralizada)
 
   const handleProfileImage = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
     try {
-      const url = await uploadToCloudinary(file);
+      const url = await compressAndUpload(file);
       await updateSettings({ profileImage: url });
       toast.success("Foto de perfil actualizada ✅");
     } catch (error) {
@@ -56,7 +40,7 @@ export default function AdminInterface() {
     setUploading(true);
     try {
       const urls = await Promise.all(
-        files.map((f) => uploadToCloudinary(f))
+        files.map((f) => compressAndUpload(f))
       );
       const existing = settings.happyCustomerImages || [];
       await updateSettings({ happyCustomerImages: [...existing, ...urls] });
