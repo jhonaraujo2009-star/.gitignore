@@ -93,14 +93,7 @@ export default function AdminPage() {
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100">
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl hover:bg-gray-50">☰</button>
-          <span className="font-bold text-gray-900 flex-1">Admin Panel</span>
-          <NavLink
-            to="/"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white shadow-sm"
-            style={{ background: "var(--primary)" }}
-          >
-            🏠 Ver tienda
-          </NavLink>
+          <span className="font-bold text-gray-900">Admin Panel</span>
         </div>
 
         <div className={`p-4 lg:p-8 ${isWidePage ? "max-w-6xl" : "max-w-3xl"}`}>

@@ -124,28 +124,26 @@ export default function Header({ onProductClick, onFilter }) {
       )}
 
       {/* CABECERA NORMAL */}
-      <div className="max-w-md mx-auto px-3 h-full flex items-center justify-between gap-2">
+      <div className="max-w-md mx-auto px-4 h-full flex items-center justify-between gap-3">
         
         {/* Logo (Ahora resetea los filtros al tocarlo) */}
         <div 
-          className="flex-shrink-0 cursor-pointer min-w-0" 
+          className="flex-shrink-0 cursor-pointer" 
           onClick={() => { 
             if(onFilter) onFilter("all"); 
             window.scrollTo(0, 0); 
           }}
         >
-          <span className="text-lg font-black tracking-tighter uppercase truncate" style={{ color: "var(--primary)" }}>
+          <span className="text-xl font-black tracking-tighter uppercase" style={{ color: "var(--primary)" }}>
             ✨ Luckathys
           </span>
         </div>
 
-        {/* Botonera — siempre visible, no se aplasta */}
-        <div className="flex items-center gap-0.5 flex-shrink-0">
+        {/* Botonera */}
+        <div className="flex items-center gap-1 flex-shrink-0">
           
-          {/* Contador de Visitas — oculto en pantallas muy pequeñas para que no desplace los botones */}
-          <div className="hidden sm:flex">
-            <VisitCounter />
-          </div>
+          {/* Contador de Visitas Premium */}
+          <VisitCounter />
 
           {/* Botón Lupa */}
           <button 
