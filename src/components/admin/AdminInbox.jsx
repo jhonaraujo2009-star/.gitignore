@@ -10,7 +10,9 @@ import {
   unlockAudio,
   playOrderNotificationSound,
   triggerOrderVibration,
-  requestNotificationPermission
+  requestNotificationPermission,
+  shouldNotifyOrder,
+  markOrdersAsKnown
 } from "../../utils/orderNotifications";
 
 export default function AdminInbox() {
@@ -30,15 +32,16 @@ export default function AdminInbox() {
       setOrders(docs);
       setLoading(false);
 
-      // Si es la carga inicial al abrir la pantalla, no sonar
+      // Si es la carga inicial al abrir la pantalla, marcar todos como conocidos
       if (isInitialOrdersLoad.current) {
+        markOrdersAsKnown(snap.docs.map((d) => d.id));
         isInitialOrdersLoad.current = false;
         return;
       }
 
-      // Si entra una orden nueva en vivo
+      // Si entra una orden nueva en vivo, solo notificar si nunca antes fue notificada
       snap.docChanges().forEach((change) => {
-        if (change.type === "added") {
+        if (change.type === "added" && shouldNotifyOrder(change.doc.id)) {
           const newOrder = { id: change.doc.id, ...change.doc.data() };
           notifyNewOrder(newOrder);
           toast.success(`🛍️ ¡Nuevo pedido de ${newOrder.customerName || "Cliente"} ($${newOrder.totalAmount || ""})!`, {

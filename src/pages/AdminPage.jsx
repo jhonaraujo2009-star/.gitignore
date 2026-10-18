@@ -3,7 +3,7 @@ import { Routes, Route, NavLink, useNavigate, useLocation } from "react-router-d
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
-import { notifyNewOrder, unlockAudio } from "../utils/orderNotifications";
+import { notifyNewOrder, unlockAudio, shouldNotifyOrder, markOrdersAsKnown } from "../utils/orderNotifications";
 import toast from "react-hot-toast";
 
 // Admin sub-panels
@@ -52,33 +52,32 @@ export default function AdminPage() {
 
   // Monitor en tiempo real de nuevos pedidos en todo el panel de administración
   useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, "orders"), orderBy("createdAt", "desc")), (snap) => {
+    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snap) => {
       setPendingOrdersCount(snap.docs.length);
 
+      // Si es la carga inicial, marcar todos los pedidos existentes como ya conocidos
       if (isInitialLoad.current) {
+        markOrdersAsKnown(snap.docs.map((d) => d.id));
         isInitialLoad.current = false;
         return;
       }
 
+      // Si entra un pedido nuevo, verificar que nunca haya sido notificado
       snap.docChanges().forEach((change) => {
-        if (change.type === "added") {
+        if (change.type === "added" && shouldNotifyOrder(change.doc.id)) {
           const newOrder = { id: change.doc.id, ...change.doc.data() };
-          
-          // Si el admin no está en la pestaña de inbox, disparar aquí la alerta
-          // (Si está en inbox, AdminInbox se encarga para no duplicar)
-          if (!location.pathname.includes("/admin/inbox")) {
-            notifyNewOrder(newOrder);
-            toast.success(`🛍️ ¡Nuevo pedido de ${newOrder.customerName || "Cliente"} ($${newOrder.totalAmount || ""})!`, {
-              duration: 8000,
-              icon: "🔔"
-            });
-          }
+          notifyNewOrder(newOrder);
+          toast.success(`🛍️ ¡Nuevo pedido de ${newOrder.customerName || "Cliente"} ($${newOrder.totalAmount || ""})!`, {
+            duration: 8000,
+            icon: "🔔"
+          });
         }
       });
     });
 
     return () => unsub();
-  }, [location.pathname]);
+  }, []);
 
   const handleLogout = async () => {
     await logout();

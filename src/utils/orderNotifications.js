@@ -134,6 +134,53 @@ export async function sendOrderPushNotification(order) {
   }
 }
 
+// Clave de almacenamiento para pedidos que ya fueron notificados
+const NOTIFIED_ORDERS_KEY = "luckathys_notified_orders";
+
+/**
+ * Obtiene el conjunto de IDs de pedidos ya notificados
+ */
+export function getNotifiedOrderIds() {
+  try {
+    const raw = localStorage.getItem(NOTIFIED_ORDERS_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Registra pedidos como conocidos/ya notificados
+ */
+export function markOrdersAsKnown(orderIds) {
+  try {
+    const set = getNotifiedOrderIds();
+    orderIds.forEach((id) => {
+      if (id) set.add(id);
+    });
+    // Limitar a los últimos 300 IDs para no saturar almacenamiento
+    const arr = Array.from(set).slice(-300);
+    localStorage.setItem(NOTIFIED_ORDERS_KEY, JSON.stringify(arr));
+  } catch (err) {
+    console.warn("Error guardando pedidos conocidos:", err);
+  }
+}
+
+/**
+ * Evalúa si un pedido debe ser notificado:
+ * Retorna true ÚNICAMENTE si nunca antes ha sido notificado.
+ * Si es nuevo, lo marca inmediatamente como conocido para que no vuelva a sonar jamás.
+ */
+export function shouldNotifyOrder(orderId) {
+  if (!orderId) return false;
+  const set = getNotifiedOrderIds();
+  if (set.has(orderId)) {
+    return false; // Ya fue notificado previamente
+  }
+  markOrdersAsKnown([orderId]);
+  return true;
+}
+
 /**
  * Disparador completo de alerta cuando entra un nuevo pedido:
  * Sonido + Vibración + Push Notification
@@ -143,3 +190,4 @@ export function notifyNewOrder(order) {
   triggerOrderVibration();
   sendOrderPushNotification(order);
 }
+
