@@ -201,6 +201,34 @@ export default function AdminInbox() {
         </button>
       </div>
 
+      {/* BANNER NOTIFICACIONES CON APP CERRADA */}
+      <div className="bg-gradient-to-r from-gray-950 via-purple-950 to-gray-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl flex-shrink-0 shadow-inner">
+            📲
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm font-black tracking-tight">Notificaciones con App Cerrada o Pantalla Apagada</h4>
+              <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">Alta Prioridad</span>
+            </div>
+            <p className="text-xs text-gray-300 mt-1 max-w-lg leading-relaxed">
+              Toca para enlazar tu teléfono al canal directo de alertas. Tu teléfono vibrará y sonará de inmediato al recibir compras, incluso con la app cerrada.
+            </p>
+          </div>
+        </div>
+
+        <a
+          href="https://ntfy.sh/luckathys_pedidos_vip"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-3 rounded-2xl bg-white text-gray-950 hover:bg-gray-100 active:scale-95 text-xs font-black uppercase tracking-wider transition-all self-start sm:self-auto flex items-center gap-2 shadow-md flex-shrink-0"
+        >
+          <span>🔔 Conectar Mi Teléfono</span>
+          <span>→</span>
+        </a>
+      </div>
+
       {/* LISTA DE PEDIDOS */}
       <div className="space-y-5">
         {loading ? (

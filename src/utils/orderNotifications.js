@@ -191,3 +191,31 @@ export function notifyNewOrder(order) {
   sendOrderPushNotification(order);
 }
 
+/**
+ * Canal Push para alertas con teléfono bloqueado / aplicación cerrada
+ * Utiliza servicio de push de alta prioridad que llega directamente al sistema operativo
+ */
+export async function dispatchExternalPushNotification(orderData, orderId) {
+  try {
+    const topic = "luckathys_pedidos_vip";
+    const customer = orderData.customerName || "Cliente";
+    const total = orderData.totalAmount ? `$${Number(orderData.totalAmount).toFixed(2)}` : "";
+    const phone = orderData.customerPhone ? ` • 📞 ${orderData.customerPhone}` : "";
+    const itemsCount = orderData.items?.length || 0;
+
+    await fetch(`https://ntfy.sh/${topic}`, {
+      method: "POST",
+      body: `💰 Monto: ${total}${phone}\n📦 Artículos: ${itemsCount} productos\n👉 Toca para abrir el Centro de Mensajería.`,
+      headers: {
+        "Title": `🛍️ ¡NUEVA COMPRA DE ${customer.toUpperCase()}!`,
+        "Priority": "urgent",
+        "Tags": "moneybag,shopping_cart",
+        "Click": typeof window !== "undefined" ? `${window.location.origin}/admin/inbox` : "https://tiendajhonaraujo.firebaseapp.com/admin/inbox"
+      }
+    });
+  } catch (err) {
+    console.warn("No se pudo enviar push externo:", err);
+  }
+}
+
+
