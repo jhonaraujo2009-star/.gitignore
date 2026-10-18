@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  collection, onSnapshot, query, orderBy, updateDoc, doc, getDocs, runTransaction, deleteDoc, serverTimestamp
+  collection, onSnapshot, query, orderBy, updateDoc, doc, runTransaction, deleteDoc
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import toast from "react-hot-toast";
@@ -13,56 +13,30 @@ import {
   requestNotificationPermission
 } from "../../utils/orderNotifications";
 
-function ReplyBox({ value, onChange, onSubmit, saving }) {
-  return (
-    <div className="mt-2 flex gap-2">
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Escribe tu respuesta..."
-        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-pink-300"
-      />
-      <button onClick={onSubmit} disabled={saving}
-        className="px-4 py-2 rounded-xl text-white text-xs font-semibold disabled:opacity-50"
-        style={{ background: "var(--primary)" }}>
-        {saving ? "..." : "Responder"}
-      </button>
-    </div>
-  );
-}
-
 export default function AdminInbox() {
-  const [tab, setTab] = useState("pedidos");
-  const [questions, setQuestions] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const [comments, setComments] = useState([]);
-  const [replyText, setReplyText] = useState({});
-  const [saving, setSaving] = useState({});
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [notifPermission, setNotifPermission] = useState(() => {
     return typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default";
   });
 
   const isInitialOrdersLoad = useRef(true);
 
-  // Cargar preguntas, órdenes en tiempo real y productos
+  // Escuchar órdenes en tiempo real de Firebase
   useEffect(() => {
-    const unsubQ = onSnapshot(query(collection(db, "questions"), orderBy("createdAt", "desc")), (snap) => {
-      setQuestions(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-
-    const unsubO = onSnapshot(query(collection(db, "orders"), orderBy("createdAt", "desc")), (snap) => {
+    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+    const unsubO = onSnapshot(q, (snap) => {
       const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setOrders(docs);
+      setLoading(false);
 
-      // Si es la primera carga inicial, no disparamos la alerta de sonido
+      // Si es la carga inicial al abrir la pantalla, no sonar
       if (isInitialOrdersLoad.current) {
         isInitialOrdersLoad.current = false;
         return;
       }
 
-      // Si entra una orden nueva después de cargar la pantalla
+      // Si entra una orden nueva en vivo
       snap.docChanges().forEach((change) => {
         if (change.type === "added") {
           const newOrder = { id: change.doc.id, ...change.doc.data() };
@@ -75,24 +49,8 @@ export default function AdminInbox() {
       });
     });
 
-    getDocs(collection(db, "products")).then((snap) => {
-      setProducts(snap.docs.map((d) => ({ id: d.id, name: d.data().name })));
-    });
-
-    return () => { 
-      unsubQ(); 
-      unsubO(); 
-    };
+    return () => unsubO();
   }, []);
-
-  useEffect(() => {
-    if (!selectedProduct) return;
-    const unsub = onSnapshot(
-      query(collection(db, "products", selectedProduct, "comments"), orderBy("createdAt", "desc")),
-      (snap) => setComments(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
-    return unsub;
-  }, [selectedProduct]);
 
   // Función para probar sonido, vibración y pedir permisos Push
   const handleTestNotifications = async () => {
@@ -110,6 +68,7 @@ export default function AdminInbox() {
     }
   };
 
+  // Modificar cantidad de un producto en un pedido
   const editItemQty = async (orderId, itemIndex, currentQty) => {
     const newQty = prompt("Nueva cantidad para este producto:", currentQty);
     if (newQty === null) return;
@@ -117,6 +76,7 @@ export default function AdminInbox() {
     if (isNaN(parsedQty) || parsedQty < 0) return;
     
     const order = orders.find(o => o.id === orderId);
+    if (!order) return;
     const updatedItems = [...order.items];
     
     if (parsedQty === 0) { 
@@ -135,9 +95,10 @@ export default function AdminInbox() {
     }
   };
 
+  // Confirmar el pago del pedido y descontar el inventario en transacción segura
   const confirmOrder = async (order) => {
     if (order.items.length === 0) return toast.error("El pedido está vacío");
-    if (!confirm(`¿Confirmar pago de ${order.customerName}?`)) return;
+    if (!confirm(`¿Confirmar pago y descontar stock de ${order.customerName || "este cliente"}?`)) return;
 
     try {
       await runTransaction(db, async (transaction) => {
@@ -164,7 +125,7 @@ export default function AdminInbox() {
 
             for (const item of producto.items) {
               if (currentVariants.length > 0 && item.variant) {
-                const labelABuscar = typeof item.variant === 'object' 
+                const labelABuscar = typeof item.variant === "object" 
                   ? item.variant.label 
                   : item.variant;
 
@@ -196,259 +157,234 @@ export default function AdminInbox() {
         
         transaction.delete(doc(db, "orders", order.id));
       });
-      toast.success(`Venta procesada con éxito ✅`);
+      toast.success(`¡Venta confirmada e inventario actualizado con éxito! ✅`);
     } catch (e) {
       console.error(e);
       toast.error("Error al procesar el pago");
     }
   };
 
-  const replyQuestion = async (id) => {
-    const text = replyText[id];
-    if (!text?.trim()) return;
-    setSaving(prev => ({ ...prev, [id]: true }));
-    try {
-      await updateDoc(doc(db, "questions", id), { adminReply: text, adminRepliedAt: serverTimestamp(), isPublic: true });
-      setReplyText(prev => ({ ...prev, [id]: "" }));
-      toast.success("Respuesta enviada ✅");
-    } catch (e) {
-      toast.error('Error al responder');
-    } finally { setSaving(prev => ({ ...prev, [id]: false })); }
-  };
-
-  const replyComment = async (commentId) => {
-    const text = replyText[commentId];
-    if (!text?.trim() || !selectedProduct) return;
-    setSaving(prev => ({ ...prev, [commentId]: true }));
-    try {
-      await updateDoc(doc(db, "products", selectedProduct, "comments", commentId), { adminReply: text, adminRepliedAt: serverTimestamp() });
-      setReplyText(prev => ({ ...prev, [commentId]: "" }));
-      toast.success("Respuesta enviada ✅");
-    } catch (e) {
-      toast.error('Error al responder');
-    } finally { setSaving(prev => ({ ...prev, [commentId]: false })); }
-  };
-
   return (
-    <div className="space-y-6 pb-20">
-      {/* HEADER CON BOTÓN DE ALERTA Y ESTADO PUSH */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="space-y-6 pb-24 max-w-4xl mx-auto">
+      {/* CABECERA PRINCIPAL */}
+      <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-[0_4px_25px_rgba(0,0,0,0.03)] border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight">💬 Centro de Mensajería</h2>
-          <p className="text-xs text-gray-500 font-medium">Pedidos en vivo, preguntas de clientes y comentarios</p>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-2xl font-black text-gray-950 tracking-tight">📥 Centro de Pedidos</h2>
+            {orders.length > 0 && (
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-pink-500 text-white shadow-sm shadow-pink-500/30 animate-pulse">
+                {orders.length} {orders.length === 1 ? "pedido" : "pedidos"}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 font-bold mt-1">
+            Monitoreo en tiempo real • Notificaciones sonoras y vibración activas
+          </p>
         </div>
 
         {/* BOTÓN TEST NOTIFICACIONES */}
         <button
           onClick={handleTestNotifications}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-xs shadow-md shadow-pink-500/20 active:scale-95 transition-all self-start sm:self-auto"
-          title="Prueba el timbre y vibración de tu teléfono y activa Push"
+          className="inline-flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-xs shadow-lg shadow-pink-500/25 active:scale-95 transition-all self-start sm:self-auto"
+          title="Prueba el timbre y vibración de tu teléfono y concede permiso para notificaciones Push"
         >
-          <span className="text-base animate-bounce">🔔</span>
+          <span className="text-lg animate-bounce">🔔</span>
           <div className="text-left">
-            <span className="block leading-none">Probar Alerta & Vibrar</span>
-            <span className="text-[9px] opacity-80 font-normal">
-              {notifPermission === "granted" ? "Push: Activo ✅" : "Toca para activar"}
+            <span className="block leading-none font-black">Probar Alerta & Vibrar</span>
+            <span className="text-[10px] opacity-90 font-medium">
+              {notifPermission === "granted" ? "Push Activo ✅" : "Activar Notificaciones"}
             </span>
           </div>
         </button>
       </div>
-      
-      {/* PESTAÑAS */}
-      <div className="flex gap-2">
-        {["pedidos", "questions", "comments"].map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${tab === t ? "text-white shadow-md shadow-pink-500/10" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-            style={tab === t ? { background: "var(--primary)" } : {}}>
-            <span>{t === "pedidos" ? "📥 Pedidos" : t === "questions" ? "❓ Preguntas" : "💬 Comentarios"}</span>
-            {t === "pedidos" && orders.length > 0 && (
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${tab === t ? "bg-white text-pink-600" : "bg-pink-500 text-white"}`}>
-                {orders.length}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
 
-      {/* PESTAÑA PEDIDOS */}
-      {tab === "pedidos" && (
-        <div className="grid gap-4">
-          {orders.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm">
-              <span className="text-5xl mb-3 block">📭</span>
-              <p className="text-gray-500 font-bold text-base">No hay pedidos pendientes</p>
-              <p className="text-gray-400 text-xs mt-1">Cuando un cliente compre en la tienda, sonará y vibrará tu teléfono automáticamente.</p>
+      {/* LISTA DE PEDIDOS */}
+      <div className="space-y-5">
+        {loading ? (
+          <div className="bg-white rounded-[2rem] p-12 text-center border border-gray-100 shadow-sm animate-pulse">
+            <div className="w-12 h-12 bg-pink-100 rounded-full mx-auto mb-3"></div>
+            <p className="text-gray-400 text-sm font-bold">Cargando pedidos...</p>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="bg-white rounded-[2.5rem] p-14 text-center border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
+            <div className="w-20 h-20 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
+              🛍️
             </div>
-          ) : (
-            orders.map((order) => (
-              <div key={order.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all">
-                {/* CABECERA DEL PEDIDO */}
-                <div className="bg-gray-50/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-100">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-black text-gray-900 uppercase text-xs tracking-wider">
-                        {order.customerName || "Cliente"}
-                      </h3>
-                      <span className="bg-pink-100 text-pink-600 text-[10px] font-black px-2 py-0.5 rounded-full">
-                        #{order.id.slice(-4).toUpperCase()}
-                      </span>
+            <h3 className="text-lg font-black text-gray-900 tracking-tight">No hay pedidos pendientes</h3>
+            <p className="text-gray-400 text-xs mt-1.5 max-w-sm mx-auto leading-relaxed">
+              Cada vez que un cliente realice una compra en tu tienda, sonará la campana y vibrará tu teléfono automáticamente.
+            </p>
+          </div>
+        ) : (
+          orders.map((order) => {
+            const totalItemsCount = order.items?.reduce((acc, i) => acc + (i.qty || 1), 0) || 0;
+
+            return (
+              <div
+                key={order.id}
+                className="bg-white rounded-[2.2rem] border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_35px_rgba(0,0,0,0.07)] transition-all duration-300 overflow-hidden group"
+              >
+                {/* ENCABEZADO DE LA TARJETA */}
+                <div className="p-5 sm:p-6 bg-gradient-to-r from-gray-50/90 via-pink-50/20 to-gray-50/90 border-b border-gray-100/80 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                  <div className="flex items-start gap-3.5">
+                    {/* AVATAR CON INICIAL */}
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-gray-900 to-black text-white flex items-center justify-center font-black text-lg shadow-md shadow-black/10 flex-shrink-0">
+                      {(order.customerName || "C").charAt(0).toUpperCase()}
                     </div>
 
-                    {/* TELÉFONO Y BOTÓN DE WHATSAPP DIRECTO */}
-                    {order.customerPhone ? (
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs font-bold text-gray-700">📞 {order.customerPhone}</span>
-                        <a
-                          href={getWhatsAppUrl(
-                            order.customerPhone,
-                            `¡Hola ${order.customerName || ""}! Te contactamos de Luckathys Shop sobre tu pedido de $${order.totalAmount || ""}. ¡Muchas gracias por tu compra! ✨`
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xs font-black shadow-sm transition-all"
-                          title="Contactar al cliente directamente por WhatsApp"
-                        >
-                          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.694.072-2.127-.521-1.834-.759-3.003-2.628-3.095-2.75-.088-.124-.736-.98-.736-1.874 0-.893.468-1.333.636-1.514.168-.181.368-.227.49-.227.123 0 .245.001.353.007.113.006.264-.043.412.313.155.372.531 1.298.577 1.393.046.094.077.205.015.328-.063.123-.094.2-.187.31-.093.111-.196.248-.28.333-.094.094-.192.196-.083.383.11.187.487.805 1.045 1.302.718.639 1.323.837 1.51.93.187.093.296.079.405-.047.11-.125.468-.544.593-.732.125-.187.249-.156.417-.094.168.063 1.066.503 1.249.596.183.093.305.14.351.218.046.079.046.453-.098.858z" />
-                            <path d="M12 2C6.477 2 2 6.477 2 12c0 1.891.526 3.66 1.438 5.174L2 22l4.981-1.307A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.167c-1.688 0-3.26-.51-4.577-1.385l-.328-.219-3.037.797.81-2.961-.24-.382A8.134 8.134 0 013.833 12c0-4.503 3.664-8.167 8.167-8.167 4.503 0 8.167 3.664 8.167 8.167 0 4.503-3.664 8.167-8.167 8.167z" />
-                          </svg>
-                          <span>WhatsApp</span>
-                        </a>
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-gray-400 mt-1 italic">Sin teléfono registrado</p>
-                    )}
-                  </div>
-
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-pink-600 leading-none">${order.totalAmount}</p>
-                    {order.createdAt && (
-                      <p className="text-[10px] text-gray-400 font-bold mt-1">
-                        {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : ""}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* LISTA DE PRODUCTOS DEL PEDIDO */}
-                <div className="p-4 space-y-2">
-                  {order.items.map((item, idx) => {
-                    const hasDiscount = (Number(item.oldPrice) > Number(item.price));
-                    return (
-                      <div key={idx} className="flex justify-between items-center text-xs py-1 border-b border-gray-50 last:border-none">
-                        <span className="text-gray-700 font-medium">
-                          {item.name} {item.variant ? `(${typeof item.variant === 'object' ? item.variant.label : item.variant})` : ""} (x{item.qty})
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-black text-gray-900 text-sm tracking-tight uppercase">
+                          {order.customerName || "Cliente"}
+                        </h3>
+                        <span className="bg-pink-100 text-pink-700 text-[10px] font-black px-2.5 py-0.5 rounded-full tracking-wider">
+                          #{order.id.slice(-5).toUpperCase()}
                         </span>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <span className="font-black text-gray-900">${(item.price * item.qty).toFixed(2)}</span>
-                            {hasDiscount && (
-                              <span className="text-[10px] text-gray-400 line-through ml-1.5 font-bold">
-                                ${(item.oldPrice * item.qty).toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-                          <button onClick={() => editItemQty(order.id, idx, item.qty)} className="text-[10px] bg-gray-100 px-2 py-1 rounded-lg font-bold text-gray-500 hover:bg-pink-100">✏️ Editar</button>
-                        </div>
+                        <span className="bg-amber-50 text-amber-700 border border-amber-200/60 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                          Por Procesar
+                        </span>
                       </div>
-                    );
-                  })}
+
+                      {/* TELÉFONO Y BOTÓN DIRECTO DE WHATSAPP */}
+                      <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                        {order.customerPhone ? (
+                          <>
+                            <span className="text-xs font-bold text-gray-700 bg-white border border-gray-200/80 px-3 py-1 rounded-xl shadow-2xs">
+                              📞 {order.customerPhone}
+                            </span>
+                            <a
+                              href={getWhatsAppUrl(
+                                order.customerPhone,
+                                `¡Hola ${order.customerName || ""}! Te contactamos de Luckathys Shop sobre tu pedido #${order.id.slice(-5).toUpperCase()} por un total de $${order.totalAmount || ""}. ¡Muchas gracias por tu compra! ✨`
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-black shadow-sm shadow-emerald-500/20 active:scale-95 transition-all"
+                              title="Chatear con el cliente en WhatsApp"
+                            >
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.694.072-2.127-.521-1.834-.759-3.003-2.628-3.095-2.75-.088-.124-.736-.98-.736-1.874 0-.893.468-1.333.636-1.514.168-.181.368-.227.49-.227.123 0 .245.001.353.007.113.006.264-.043.412.313.155.372.531 1.298.577 1.393.046.094.077.205.015.328-.063.123-.094.2-.187.31-.093.111-.196.248-.28.333-.094.094-.192.196-.083.383.11.187.487.805 1.045 1.302.718.639 1.323.837 1.51.93.187.093.296.079.405-.047.11-.125.468-.544.593-.732.125-.187.249-.156.417-.094.168.063 1.066.503 1.249.596.183.093.305.14.351.218.046.079.046.453-.098.858z" />
+                                <path d="M12 2C6.477 2 2 6.477 2 12c0 1.891.526 3.66 1.438 5.174L2 22l4.981-1.307A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.167c-1.688 0-3.26-.51-4.577-1.385l-.328-.219-3.037.797.81-2.961-.24-.382A8.134 8.134 0 013.833 12c0-4.503 3.664-8.167 8.167-8.167 4.503 0 8.167 3.664 8.167 8.167 0 4.503-3.664 8.167-8.167 8.167z" />
+                              </svg>
+                              <span>WhatsApp</span>
+                            </a>
+                          </>
+                        ) : (
+                          <span className="text-[11px] text-gray-400 italic">Sin teléfono registrado</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* MONTO Y HORA */}
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 pt-2.5 sm:pt-0 border-gray-100">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest sm:block">TOTAL ORDEN</span>
+                    <p className="text-2xl sm:text-3xl font-black text-pink-600 tracking-tight leading-none">
+                      ${Number(order.totalAmount || 0).toFixed(2)}
+                    </p>
+                    {order.createdAt && (
+                      <span className="text-[10px] text-gray-400 font-bold mt-1">
+                        🕒 {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : ""}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* BOTONES DE ACCIÓN */}
-                <div className="px-4 pb-4 flex gap-2">
-                  <button onClick={() => confirmOrder(order)} className="flex-1 bg-black text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all">
-                    Confirmar Pago
-                  </button>
-                  <button onClick={async () => { if (!confirm('¿Eliminar este pedido permanentemente?')) return; try { await deleteDoc(doc(db, "orders", order.id)); toast.success('Pedido eliminado'); } catch { toast.error('Error al eliminar pedido'); } }} className="px-4 bg-red-50 text-red-500 rounded-2xl text-[10px] font-black hover:bg-red-100 transition-all">
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* PESTAÑA PREGUNTAS */}
-      {tab === "questions" && (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="divide-y divide-gray-100">
-            {questions.length === 0 ? (
-              <p className="text-center text-gray-400 py-8 text-sm">No hay preguntas de clientes aún.</p>
-            ) : (
-              questions.map((q) => (
-                <div key={q.id} className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="text-sm font-medium text-gray-800">{q.text}</p>
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${q.isPublic ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                      {q.isPublic ? "Pública" : "Privada"}
+                {/* LISTA DE ARTÍCULOS */}
+                <div className="p-5 sm:p-6 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      PRODUCTOS COMPRADOS ({totalItemsCount})
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400">
+                      Toca ✏️ para ajustar cantidades
                     </span>
                   </div>
 
-                  {/* TELÉFONO Y WHATSAPP EN PREGUNTAS */}
-                  {q.phone && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-gray-600 font-bold">📞 {q.phone}</span>
-                      <a
-                        href={getWhatsAppUrl(q.phone, `¡Hola! Te contactamos de Luckathys sobre tu pregunta: "${q.text}"`)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black shadow-sm transition-all"
-                      >
-                        <span>💬 WhatsApp</span>
-                      </a>
-                    </div>
-                  )}
+                  <div className="divide-y divide-gray-100 bg-gray-50/50 rounded-2xl p-2 border border-gray-100">
+                    {order.items?.map((item, idx) => {
+                      const itemOldPrice = Number(item.oldPrice) || 0;
+                      const itemPrice = Number(item.price) || 0;
+                      const hasDiscount = itemOldPrice > itemPrice;
 
-                  {q.adminReply ? (
-                    <div className="bg-pink-50 rounded-2xl px-4 py-2.5 text-xs border border-pink-100">
-                      <span className="font-black" style={{ color: "var(--primary)" }}>Tu respuesta: </span>
-                      <span className="text-gray-700 font-medium">{q.adminReply}</span>
-                    </div>
-                  ) : (
-                    <ReplyBox value={replyText[q.id] || ""} onChange={(v) => setReplyText({ ...replyText, [q.id]: v })} onSubmit={() => replyQuestion(q.id)} saving={saving[q.id]} />
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+                      return (
+                        <div key={idx} className="p-3 flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-black text-gray-800 uppercase line-clamp-1">
+                              {item.name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {item.variant && (
+                                <span className="text-[10px] font-bold text-gray-600 bg-white border border-gray-200 px-2 py-0.5 rounded-lg shadow-2xs">
+                                  {typeof item.variant === "object" ? item.variant.label : item.variant}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-black text-pink-600 bg-pink-50 px-2 py-0.5 rounded-lg">
+                                x{item.qty} {item.qty === 1 ? "unidad" : "unidades"}
+                              </span>
+                              {hasDiscount && (
+                                <span className="text-[9px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md">
+                                  🔥 Oferta
+                                </span>
+                              )}
+                            </div>
+                          </div>
 
-      {/* PESTAÑA COMENTARIOS */}
-      {tab === "comments" && (
-        <div className="space-y-4">
-          <select value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold outline-none focus:border-pink-300">
-            <option value="">Selecciona un producto para ver comentarios...</option>
-            {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-          {selectedProduct && (
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="divide-y divide-gray-100">
-                {comments.length === 0 ? (
-                  <p className="text-center text-gray-400 py-8 text-sm">No hay comentarios en este producto.</p>
-                ) : (
-                  comments.map((c) => (
-                    <div key={c.id} className="p-4">
-                      <p className="text-sm font-black text-gray-800 mb-0.5">{c.authorName}</p>
-                      <p className="text-sm text-gray-600 mb-2">{c.text}</p>
-                      {c.adminReply ? (
-                        <div className="bg-pink-50 rounded-2xl px-4 py-2.5 text-xs border border-pink-100">
-                          <span className="font-black" style={{ color: "var(--primary)" }}>Tu respuesta: </span>
-                          <span className="text-gray-700 font-medium">{c.adminReply}</span>
+                          {/* PRECIO Y BOTÓN EDITAR */}
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-xs font-black text-gray-900 leading-none">
+                                ${(itemPrice * item.qty).toFixed(2)}
+                              </p>
+                              {hasDiscount && (
+                                <span className="text-[10px] text-gray-400 font-bold line-through decoration-red-500/80">
+                                  ${(itemOldPrice * item.qty).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => editItemQty(order.id, idx, item.qty)}
+                              className="p-1.5 rounded-xl bg-white border border-gray-200 hover:border-pink-300 hover:bg-pink-50 text-xs font-bold text-gray-500 hover:text-pink-600 transition-all shadow-2xs active:scale-95"
+                              title="Editar cantidad"
+                            >
+                              ✏️
+                            </button>
+                          </div>
                         </div>
-                      ) : (
-                        <ReplyBox value={replyText[c.id] || ""} onChange={(v) => setReplyText({ ...replyText, [c.id]: v })} onSubmit={() => replyComment(c.id)} saving={saving[c.id]} />
-                      )}
-                    </div>
-                  ))
-                )}
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* BARRA DE ACCIONES INFERIOR */}
+                <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-1 flex flex-col sm:flex-row gap-2.5">
+                  <button
+                    onClick={() => confirmOrder(order)}
+                    className="flex-1 py-3.5 rounded-2xl bg-gray-950 hover:bg-black text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-black/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>✅ Confirmar Pago & Descontar Stock</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("¿Eliminar este pedido permanentemente?")) return;
+                      try {
+                        await deleteDoc(doc(db, "orders", order.id));
+                        toast.success("Pedido eliminado correctamente");
+                      } catch {
+                        toast.error("Error al eliminar pedido");
+                      }
+                    }}
+                    className="py-3.5 px-5 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-black uppercase tracking-wider transition-all active:scale-[0.98]"
+                  >
+                    🗑️ Eliminar
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
