@@ -65,22 +65,26 @@ export default function CartDrawer() {
       const itemLines = items.map((i) => {
         const hasDiscount = (Number(i.oldPrice) > Number(i.price)) || (Number(i.product?.oldPrice) > Number(i.price));
         const oldP = hasDiscount ? Number(i.oldPrice || i.product?.oldPrice).toFixed(2) : null;
-        return `• ${i.product.name}${i.variant ? ` [${i.variant.label}]` : ""} (x${i.quantity}) - $${(i.price * i.quantity).toFixed(2)}${oldP ? ` (Antes: $${(oldP * i.quantity).toFixed(2)})` : ""}`;
+        return `  ▪️ ${i.product.name}${i.variant ? ` [${i.variant.label}]` : ""} (x${i.quantity}) - $${(i.price * i.quantity).toFixed(2)}${oldP ? ` ~(Antes: $${(oldP * i.quantity).toFixed(2)})~` : ""}`;
       }).join("\n");
       
-      const message = `🛍️ *LUCKATHYS SHOP - NUEVA ORDEN*\n\n` +
+      const message = `✨ *LUCKATHYS SHOP • NUEVO PEDIDO* ✨\n` +
+                      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
                       `${customer.name ? `👤 *Cliente:* ${customer.name}\n` : ""}` +
-                      `${customer.phone ? `📞 *Teléfono:* ${customer.phone}\n` : ""}` +
+                      `${customer.phone ? `📱 *Teléfono:* ${customer.phone}\n` : ""}` +
                       `${customer.name || customer.phone ? "\n" : ""}` +
-                      `📦 *Pedido:*\n${itemLines}\n\n` +
-                      `${coupon ? `🏷️ *Cupón:* ${coupon.code} (-$${discount.toFixed(2)})\n` : ""}` +
-                      `💵 *TOTAL A PAGAR: $${total.toFixed(2)}*\n` +
-                      `🇻🇪 *BS. TOTAL: ${bsPrice(total)}*\n\n` +
+                      `📦 *PRODUCTOS COMPRADOS:*\n${itemLines}\n\n` +
+                      `${coupon ? `🎟️ *Cupón aplicado:* ${coupon.code} (-$${discount.toFixed(2)})\n` : ""}` +
+                      `💰 *TOTAL A PAGAR: $${total.toFixed(2)}*\n` +
+                      `💳 *BS. TOTAL: ${bsPrice(total)}*\n\n` +
+                      `━━━━━━━━━━━━━━━━━━━━━━\n` +
                       `🏦 *MÉTODO DE PAGO:* ${selectedPayment.bankName}\n` +
-                      `📌 *DATOS:* ${selectedPayment.holderName} | ${selectedPayment.idNumber}\n` +
-                      `${selectedPayment.phone ? `📲 *Teléfono:* ${selectedPayment.phone}\n` : ""}` +
-                      `${selectedPayment.accountNumber ? `🏦 *Número de cuenta:* ${selectedPayment.accountNumber}\n` : ""}` +
-                      `\n⚡ _Por favor, envíe el comprobante de pago por aquí._`;
+                      `📝 *TITULAR:* ${selectedPayment.holderName}\n` +
+                      `${selectedPayment.idNumber ? `🆔 *C.I / RIF:* ${selectedPayment.idNumber}\n` : ""}` +
+                      `${selectedPayment.phone ? `📱 *TELÉFONO:* ${selectedPayment.phone}\n` : ""}` +
+                      `${selectedPayment.accountNumber ? `🔢 *NÚMERO DE CUENTA:* ${selectedPayment.accountNumber}\n` : ""}` +
+                      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+                      `📸 *Por favor, envía tu captura o comprobante de pago por aquí para confirmar tu pedido.* ¡Muchas gracias! 💖`;
 
       window.open(`https://wa.me/${cleanTarget}?text=${encodeURIComponent(message)}`, "_blank");
       
