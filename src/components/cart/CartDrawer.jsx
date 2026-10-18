@@ -3,6 +3,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { useCart } from "../../context/CartContext";
 import { useApp } from "../../context/AppContext";
+import { cleanPhoneForWhatsApp } from "../../utils/phoneUtils";
 import toast from "react-hot-toast";
 
 export default function CartDrawer() {
@@ -55,12 +56,17 @@ export default function CartDrawer() {
     if (!selectedPayment) return toast.error("Elige cómo vas a pagar");
 
     const targetPhone = selectedPayment.phone || settings.whatsappNumber;
+    const cleanTarget = cleanPhoneForWhatsApp(targetPhone);
 
     try {
       const orderData = { ...customer, paymentId: selectedPayment.id, total };
       await createOrder(orderData);
 
-      const itemLines = items.map((i) => `• ${i.product.name}${i.variant ? ` [${i.variant.label}]` : ""} (x${i.quantity})`).join("\n");
+      const itemLines = items.map((i) => {
+        const hasDiscount = (Number(i.oldPrice) > Number(i.price)) || (Number(i.product?.oldPrice) > Number(i.price));
+        const oldP = hasDiscount ? Number(i.oldPrice || i.product?.oldPrice).toFixed(2) : null;
+        return `• ${i.product.name}${i.variant ? ` [${i.variant.label}]` : ""} (x${i.quantity}) - $${(i.price * i.quantity).toFixed(2)}${oldP ? ` (Antes: $${(oldP * i.quantity).toFixed(2)})` : ""}`;
+      }).join("\n");
       
       const message = `🛍️ *LUCKATHYS SHOP - NUEVA ORDEN*\n\n` +
                       `${customer.name ? `👤 *Cliente:* ${customer.name}\n` : ""}` +
@@ -76,7 +82,7 @@ export default function CartDrawer() {
                       `${selectedPayment.accountNumber ? `🏦 *Número de cuenta:* ${selectedPayment.accountNumber}\n` : ""}` +
                       `\n⚡ _Por favor, envíe el comprobante de pago por aquí._`;
 
-      window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, "_blank");
+      window.open(`https://wa.me/${cleanTarget}?text=${encodeURIComponent(message)}`, "_blank");
       
       clearCart();
       setIsOpen(false);
@@ -121,27 +127,47 @@ export default function CartDrawer() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {items.map((item) => (
-                    <div key={item.key} className="flex gap-4 bg-gray-50/50 border border-gray-100 p-4 rounded-[2rem] group transition-all">
-                      <div className="w-20 h-24 bg-gray-100 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm">
-                        <img src={item.product.image || item.product.images?.[0]} className="w-full h-full object-cover" alt="" />
-                      </div>
-                      <div className="flex-1 flex flex-col justify-between py-1">
-                        <div>
-                          <h4 className="text-sm font-black text-gray-800 uppercase line-clamp-1">{item.product.name}</h4>
-                          {item.variant && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{item.variant.label}</span>}
+                  {items.map((item) => {
+                    const itemOldPrice = Number(item.oldPrice || item.product?.oldPrice) || 0;
+                    const itemPrice = Number(item.price) || 0;
+                    const hasDiscount = itemOldPrice > itemPrice;
+
+                    return (
+                      <div key={item.key} className="flex gap-4 bg-gray-50/50 border border-gray-100 p-4 rounded-[2rem] group transition-all">
+                        <div className="w-20 h-24 bg-gray-100 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm">
+                          <img src={item.product.image || item.product.images?.[0]} className="w-full h-full object-cover" alt="" />
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="font-black text-pink-600">${item.price}</span>
-                          <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-full p-1 shadow-sm">
-                            <button onClick={() => updateQuantity(item.key, item.quantity - 1)} className="w-7 h-7 flex items-center justify-center text-gray-400 font-bold">-</button>
-                            <span className="text-xs font-black w-4 text-center">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.key, item.quantity + 1)} className="w-7 h-7 flex items-center justify-center bg-black text-white rounded-full font-bold shadow-md">+</button>
+                        <div className="flex-1 flex flex-col justify-between py-1">
+                          <div>
+                            <h4 className="text-sm font-black text-gray-800 uppercase line-clamp-1">{item.product.name}</h4>
+                            {item.variant && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{item.variant.label}</span>}
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <span className="font-black text-pink-600 text-base">${itemPrice.toFixed(2)}</span>
+                                {hasDiscount && (
+                                  <span className="text-xs font-bold text-gray-400 line-through decoration-red-500/80">
+                                    ${itemOldPrice.toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                              {hasDiscount && (
+                                <span className="text-[9px] font-black text-red-500 uppercase tracking-tight">
+                                  🔥 Descuento aplicado
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-full p-1 shadow-sm">
+                              <button onClick={() => updateQuantity(item.key, item.quantity - 1)} className="w-7 h-7 flex items-center justify-center text-gray-400 font-bold">-</button>
+                              <span className="text-xs font-black w-4 text-center">{item.quantity}</span>
+                              <button onClick={() => updateQuantity(item.key, item.quantity + 1)} className="w-7 h-7 flex items-center justify-center bg-black text-white rounded-full font-bold shadow-md">+</button>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </>
@@ -152,7 +178,7 @@ export default function CartDrawer() {
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Información de Entrega</label>
                 <div className="grid grid-cols-1 gap-3">
                   <input placeholder="Nombre completo" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm outline-none focus:border-pink-300 focus:bg-white transition-all" />
-                  <input placeholder="Teléfono WhatsApp" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm outline-none focus:border-pink-300 focus:bg-white transition-all" />
+                  <input placeholder="Teléfono WhatsApp (Ej: 04247173840)" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm outline-none focus:border-pink-300 focus:bg-white transition-all" />
                 </div>
               </div>
 

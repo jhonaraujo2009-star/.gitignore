@@ -3,6 +3,7 @@ import { doc, updateDoc, increment, setDoc, onSnapshot } from "firebase/firestor
 import { db } from "../../config/firebase";
 import { useApp } from "../../context/AppContext";
 import { useCart } from "../../context/CartContext";
+import { getProductPricing } from "../../utils/pricingUtils";
 import toast from "react-hot-toast";
 
 export default function ProductModal({ product, onClose }) {
@@ -26,18 +27,9 @@ export default function ProductModal({ product, onClose }) {
     ? selectedVariant?.stock ?? 0
     : product.totalStock ?? 0;
 
-  // Lógica de Oferta
-  const oldPrice = Number(product.oldPrice) || 0;
-  const currentPrice = Number(product.price) || 0;
-  const isFlashOffer = product.offerEndsAt && product.offerEndsAt > Date.now();
-  const hasDiscount = (oldPrice > currentPrice) || isFlashOffer;
-  
-  let discountPercentage = 0;
-  if (isFlashOffer && product.offerDiscount) {
-    discountPercentage = Number(product.offerDiscount);
-  } else if (oldPrice > currentPrice) {
-    discountPercentage = Math.round(((oldPrice - currentPrice) / oldPrice) * 100);
-  }
+  // Lógica de Oferta unificada
+  const pricing = getProductPricing(product);
+  const { finalPrice, oldPrice, hasDiscount, discountPercentage, isFlash: isFlashOffer } = pricing;
 
   // Sincronizar likes en vivo
   useEffect(() => {
@@ -91,7 +83,7 @@ export default function ProductModal({ product, onClose }) {
   const handleAddToCart = () => {
     if (hasVariants && !selectedVariant) return toast.error("Selecciona una talla o medida");
     if (quantity > availableStock) return toast.error("Supera el stock disponible");
-    addItem(product, selectedVariant, quantity);
+    addItem({ ...product, price: finalPrice, oldPrice }, selectedVariant, quantity);
     toast.success("¡Excelente elección! 🛍️");
     onClose();
   };
@@ -181,16 +173,16 @@ export default function ProductModal({ product, onClose }) {
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-3">
                     <span className={`text-3xl font-black ${hasDiscount ? "text-red-600" : "text-gray-950"}`}>
-                      ${product.price}
+                      ${finalPrice.toFixed(2)}
                     </span>
-                    {oldPrice > 0 && (
+                    {oldPrice > finalPrice && (
                       <span className="text-lg font-bold text-gray-400 line-through decoration-red-500/50">
-                        ${oldPrice}
+                        ${oldPrice.toFixed(2)}
                       </span>
                     )}
                   </div>
                   <span className="text-sm font-semibold text-gray-400 mt-1 uppercase">
-                    Bs. {bsPrice(product.price)}
+                    Bs. {bsPrice(finalPrice)}
                   </span>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { getProductPricing } from "../utils/pricingUtils";
 
 const CartContext = createContext(null);
 
@@ -24,8 +25,9 @@ export function CartProvider({ children }) {
   }, [items]);
 
   const addItem = useCallback((product, variant, quantity) => {
+    const { finalPrice, oldPrice } = getProductPricing(product);
     setItems((prev) => {
-      const key = `${product.id}-${variant?.id || "default"}`;
+      const key = `${product.id}-${variant?.id || variant?.label || "default"}`;
       const existing = prev.find((i) => i.key === key);
       if (existing) {
         return prev.map((i) =>
@@ -39,7 +41,8 @@ export function CartProvider({ children }) {
           product,
           variant,
           quantity,
-          price: product.price,
+          price: finalPrice,
+          oldPrice: oldPrice > finalPrice ? oldPrice : (Number(product.oldPrice) || 0),
         },
       ];
     });
@@ -64,13 +67,14 @@ export function CartProvider({ children }) {
   const createOrder = async (customerData) => {
     try {
       const orderData = {
-        customerName: customerData.name,
-        customerPhone: customerData.phone,
+        customerName: customerData.name || "Cliente",
+        customerPhone: customerData.phone || "",
         items: items.map(i => ({
           id: i.product.id,
           name: i.product.name,
           qty: i.quantity,
           price: i.price,
+          oldPrice: i.oldPrice || i.product?.oldPrice || 0,
           variant: i.variant?.label || null 
         })),
         totalAmount: total,
