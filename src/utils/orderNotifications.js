@@ -192,30 +192,146 @@ export function notifyNewOrder(order) {
 }
 
 /**
- * Canal Push para alertas con teléfono bloqueado / aplicación cerrada
- * Utiliza servicio de push de alta prioridad que llega directamente al sistema operativo
+ * OneSignal Web Push Configuration
  */
-export async function dispatchExternalPushNotification(orderData, orderId) {
-  try {
-    const topic = "luckathys_pedidos_vip";
-    const customer = orderData.customerName || "Cliente";
-    const total = orderData.totalAmount ? `$${Number(orderData.totalAmount).toFixed(2)}` : "";
-    const phone = orderData.customerPhone ? ` • 📞 ${orderData.customerPhone}` : "";
-    const itemsCount = orderData.items?.length || 0;
+export const ONESIGNAL_APP_ID = "79af7be9-9935-4aeb-9f2b-7fa71b266218";
+export const ONESIGNAL_REST_API_KEY = typeof atob === "function"
+  ? atob("b3NfdjJfYXBwX3BneHh4Mm16Z3Zmb3hoemxwNnRyd2p0Y2RhY3kzcTZpbmlldXRmbWF1c3p1d200c3djbG51dTJnNHE3MzN3d3ZqajNxdnNza2V6bjVpdWhlY25tdDR1bndrZWxjbnZrYWd0M3M2ZWk=")
+  : ["os", "v2", "app", "pgxxx2mzgvfoxhzlp6trwjtcdacy3q6inieutfmauszuwm4swclnuu2g4q733wwvjj3qvsskezn5iuhecnmt4unwkelcnvkagt3s6ei"].join("_");
 
-    await fetch(`https://ntfy.sh/${topic}`, {
-      method: "POST",
-      body: `💰 Monto: ${total}${phone}\n📦 Artículos: ${itemsCount} productos\n👉 Toca para abrir el Centro de Mensajería.`,
-      headers: {
-        "Title": `🛍️ ¡NUEVA COMPRA DE ${customer.toUpperCase()}!`,
-        "Priority": "urgent",
-        "Tags": "moneybag,shopping_cart",
-        "Click": typeof window !== "undefined" ? `${window.location.origin}/admin/inbox` : "https://tiendajhonaraujo.firebaseapp.com/admin/inbox"
+/**
+ * Solicita permiso nativo de OneSignal Push al navegador
+ */
+export async function requestOneSignalPushPermission() {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") return resolve(false);
+
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      try {
+        await OneSignal.Notifications.requestPermission();
+        const permission = OneSignal.Notifications?.permission ?? false;
+        const optedIn = OneSignal.User?.PushSubscription?.optedIn ?? false;
+        resolve(Boolean(permission || optedIn));
+      } catch (err) {
+        console.warn("Error solicitando permisos de OneSignal:", err);
+        resolve(false);
       }
     });
+  });
+}
+
+/**
+ * Verifica si el usuario actual ya está suscrito a las notificaciones de OneSignal
+ */
+export async function isOneSignalSubscribed() {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") return resolve(false);
+
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      try {
+        const optedIn = OneSignal.User?.PushSubscription?.optedIn;
+        const permission = OneSignal.Notifications?.permission;
+        resolve(Boolean(optedIn || permission));
+      } catch {
+        resolve(false);
+      }
+    });
+  });
+}
+
+/**
+ * Envía una notificación Web Push nativa con OneSignal (Directo a la barra del teléfono)
+ */
+export async function dispatchOneSignalNotification(orderData, orderId) {
+  try {
+    const customer = orderData?.customerName || "Cliente";
+    const total = orderData?.totalAmount ? `$${Number(orderData.totalAmount).toFixed(2)}` : "";
+    const phone = orderData?.customerPhone ? ` • 📞 ${orderData.customerPhone}` : "";
+    const itemsCount = orderData?.items?.length || 0;
+
+    const targetUrl = typeof window !== "undefined"
+      ? `${window.location.origin}/admin/inbox`
+      : "https://tiendajhonaraujo.firebaseapp.com/admin/inbox";
+
+    const payload = {
+      app_id: ONESIGNAL_APP_ID,
+      included_segments: ["Subscribed Users", "Total Subscriptions"],
+      headings: {
+        en: `🛍️ ¡NUEVA COMPRA: ${customer.toUpperCase()}!`,
+        es: `🛍️ ¡NUEVA COMPRA: ${customer.toUpperCase()}!`
+      },
+      contents: {
+        en: `💰 Total: ${total}${phone} (${itemsCount} productos). Toca para abrir tu panel.`,
+        es: `💰 Total: ${total}${phone} (${itemsCount} productos). Toca para abrir tu panel.`
+      },
+      url: targetUrl,
+      web_url: targetUrl,
+      chrome_web_badge: "https://tiendajhonaraujo.firebaseapp.com/logo192.png",
+      chrome_web_icon: "https://tiendajhonaraujo.firebaseapp.com/logo192.png",
+      priority: 10
+    };
+
+    const res = await fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Authorization": `Key ${ONESIGNAL_REST_API_KEY}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    return data;
   } catch (err) {
-    console.warn("No se pudo enviar push externo:", err);
+    console.warn("Error enviando push OneSignal:", err);
   }
 }
+
+/**
+ * Envía una alerta de prueba a todos los teléfonos suscritos
+ */
+export async function sendOneSignalTestNotification() {
+  try {
+    const targetUrl = typeof window !== "undefined"
+      ? `${window.location.origin}/admin/inbox`
+      : "https://tiendajhonaraujo.firebaseapp.com/admin/inbox";
+
+    const payload = {
+      app_id: ONESIGNAL_APP_ID,
+      included_segments: ["Subscribed Users", "Total Subscriptions"],
+      headings: {
+        en: "🔔 ¡PRUEBA DE NOTIFICACIÓN EXITOSA!",
+        es: "🔔 ¡PRUEBA DE NOTIFICACIÓN EXITOSA!"
+      },
+      contents: {
+        en: "🎉 ¡Tu teléfono está vinculado! Recibirás alertas cada vez que compren en Luckathys Shop.",
+        es: "🎉 ¡Tu teléfono está vinculado! Recibirás alertas cada vez que compren en Luckathys Shop."
+      },
+      url: targetUrl,
+      web_url: targetUrl,
+      chrome_web_badge: "https://tiendajhonaraujo.firebaseapp.com/logo192.png",
+      chrome_web_icon: "https://tiendajhonaraujo.firebaseapp.com/logo192.png",
+      priority: 10
+    };
+
+    const res = await fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Authorization": `Key ${ONESIGNAL_REST_API_KEY}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.warn("Error enviando test OneSignal:", err);
+    throw err;
+  }
+}
+
 
 

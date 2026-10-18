@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect } from "rea
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { getProductPricing } from "../utils/pricingUtils";
-import { dispatchExternalPushNotification } from "../utils/orderNotifications";
+import { dispatchOneSignalNotification } from "../utils/orderNotifications";
 
 const CartContext = createContext(null);
 
@@ -84,8 +84,8 @@ export function CartProvider({ children }) {
       };
       const docRef = await addDoc(collection(db, "orders"), orderData);
       
-      // Enviar notificación Push de alta prioridad para teléfono bloqueado o app cerrada
-      dispatchExternalPushNotification(orderData, docRef.id);
+      // Enviar notificación Push nativa OneSignal para teléfono bloqueado o app cerrada
+      dispatchOneSignalNotification(orderData, docRef.id);
 
       return docRef.id;
     } catch (error) {

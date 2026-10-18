@@ -12,7 +12,10 @@ import {
   triggerOrderVibration,
   requestNotificationPermission,
   shouldNotifyOrder,
-  markOrdersAsKnown
+  markOrdersAsKnown,
+  requestOneSignalPushPermission,
+  sendOneSignalTestNotification,
+  isOneSignalSubscribed
 } from "../../utils/orderNotifications";
 
 export default function AdminInbox() {
@@ -21,6 +24,8 @@ export default function AdminInbox() {
   const [notifPermission, setNotifPermission] = useState(() => {
     return typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default";
   });
+  const [isPushSubscribed, setIsPushSubscribed] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
 
   const isInitialOrdersLoad = useRef(true);
 
@@ -55,6 +60,13 @@ export default function AdminInbox() {
     return () => unsubO();
   }, []);
 
+  // Verificar estado de suscripción a OneSignal al cargar
+  useEffect(() => {
+    isOneSignalSubscribed().then((subscribed) => {
+      setIsPushSubscribed(subscribed);
+    });
+  }, []);
+
   // Función para probar sonido, vibración y pedir permisos Push
   const handleTestNotifications = async () => {
     unlockAudio();
@@ -64,10 +76,49 @@ export default function AdminInbox() {
     const perm = await requestNotificationPermission();
     setNotifPermission(perm);
 
+    // Intentar también registrar OneSignal si es posible
+    requestOneSignalPushPermission().then((granted) => {
+      if (granted) setIsPushSubscribed(true);
+    });
+
     if (perm === "granted") {
-      toast.success("🔔 ¡Sonido, vibración y notificaciones Push activadas!");
+      toast.success("🔔 ¡Sonido, vibración y notificaciones activadas!");
     } else {
       toast("🔔 Sonido y vibración probados con éxito", { icon: "🔊" });
+    }
+  };
+
+  // Activar Notificaciones Nativas en el teléfono (OneSignal)
+  const handleEnableNativePush = async () => {
+    unlockAudio();
+    playOrderNotificationSound();
+    triggerOrderVibration();
+
+    try {
+      const granted = await requestOneSignalPushPermission();
+      if (granted) {
+        setIsPushSubscribed(true);
+        setNotifPermission("granted");
+        toast.success("🎉 ¡Notificaciones nativas activadas con éxito! Tu teléfono recibirá alertas de compra.");
+      } else {
+        toast("Permiso no concedido o cancelado. Puedes permitirlo desde los ajustes del navegador.", { icon: "ℹ️" });
+      }
+    } catch (err) {
+      toast.error("Error al activar notificaciones");
+    }
+  };
+
+  // Enviar alerta de prueba directa al teléfono
+  const handleSendTestPush = async () => {
+    try {
+      setTestingPush(true);
+      toast.loading("Enviando alerta de prueba a tu teléfono...", { id: "test-push" });
+      await sendOneSignalTestNotification();
+      toast.success("📲 ¡Alerta enviada! Revisa la barra de notificaciones de tu teléfono.", { id: "test-push", duration: 5000 });
+    } catch (err) {
+      toast.error("No se pudo enviar la alerta de prueba.", { id: "test-push" });
+    } finally {
+      setTestingPush(false);
     }
   };
 
@@ -201,32 +252,53 @@ export default function AdminInbox() {
         </button>
       </div>
 
-      {/* BANNER NOTIFICACIONES CON APP CERRADA */}
+      {/* BANNER NOTIFICACIONES NATIVAS EN EL TELÉFONO */}
       <div className="bg-gradient-to-r from-gray-950 via-purple-950 to-gray-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl flex-shrink-0 shadow-inner">
-            📲
+            🔔
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="text-sm font-black tracking-tight">Notificaciones con App Cerrada o Pantalla Apagada</h4>
-              <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">Alta Prioridad</span>
+              <h4 className="text-sm font-black tracking-tight">Notificaciones Nativas en tu Celular</h4>
+              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${isPushSubscribed ? "bg-emerald-500 text-white" : "bg-pink-500 text-white"}`}>
+                {isPushSubscribed ? "Vinculado ✅" : "Nativo 100%"}
+              </span>
             </div>
             <p className="text-xs text-gray-300 mt-1 max-w-lg leading-relaxed">
-              Toca para enlazar tu teléfono al canal directo de alertas. Tu teléfono vibrará y sonará de inmediato al recibir compras, incluso con la app cerrada.
+              Recibe avisos con sonido y vibración en la barra de tu teléfono cuando un cliente compre, incluso con la app cerrada o la pantalla apagada. Sin instalar ninguna otra app.
             </p>
           </div>
         </div>
 
-        <a
-          href="https://ntfy.sh/luckathys_pedidos_vip"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-5 py-3 rounded-2xl bg-white text-gray-950 hover:bg-gray-100 active:scale-95 text-xs font-black uppercase tracking-wider transition-all self-start sm:self-auto flex items-center gap-2 shadow-md flex-shrink-0"
-        >
-          <span>🔔 Conectar Mi Teléfono</span>
-          <span>→</span>
-        </a>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto flex-shrink-0">
+          {!isPushSubscribed ? (
+            <button
+              onClick={handleEnableNativePush}
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 active:scale-95 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-pink-500/30"
+            >
+              <span>🔔 Activar en mi Celular</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleSendTestPush}
+              disabled={testingPush}
+              className="px-5 py-3 rounded-2xl bg-white text-gray-950 hover:bg-gray-100 active:scale-95 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-md disabled:opacity-50"
+            >
+              <span>{testingPush ? "⏳ Enviando..." : "📲 Probar Alerta en mi Teléfono"}</span>
+            </button>
+          )}
+
+          {isPushSubscribed && (
+            <button
+              onClick={handleEnableNativePush}
+              title="Volver a sincronizar permisos"
+              className="px-3 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
+            >
+              🔄
+            </button>
+          )}
+        </div>
       </div>
 
       {/* LISTA DE PEDIDOS */}
