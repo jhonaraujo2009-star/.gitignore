@@ -1,4 +1,5 @@
 import { useApp } from "../../context/AppContext";
+import { cleanPhoneForWhatsApp } from "../../utils/phoneUtils";
 
 export default function WhatsAppVIP() {
   const { settings } = useApp();
@@ -8,12 +9,12 @@ export default function WhatsAppVIP() {
   if (!widget?.active || !widget?.number) return null;
 
   const handleChat = () => {
+    const cleanPhone = cleanPhoneForWhatsApp(widget.number);
     const text = encodeURIComponent(widget.message || "Hola Luckathys, necesito asesoría.");
-    window.open(`https://wa.me/${widget.number}?text=${text}`, "_blank");
+    window.open(`https://wa.me/${cleanPhone}?text=${text}`, "_blank");
   };
 
   return (
-    // CONTENEDOR ULTRA: Cambiamos "bottom-28" a "bottom-48" para subirlo y darle aire
     <button
       onClick={handleChat}
       className="fixed bottom-48 right-4 z-50 group flex items-center gap-0 bg-white/30 backdrop-blur-3xl rounded-full p-2 hover:pr-6 transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-95 shadow-[0_8px_32px_rgba(236,72,153,0.25)] border border-white/60 animate-float"
@@ -40,17 +41,6 @@ export default function WhatsAppVIP() {
           En línea ahora
         </span>
       </div>
-
-      <style jsx>{`
-        @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-6px); }
-          100% { transform: translateY(0px); }
-        }
-        .animate-float {
-          animation: float 4s ease-in-out infinite;
-        }
-      `}</style>
     </button>
   );
 }

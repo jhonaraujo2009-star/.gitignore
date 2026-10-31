@@ -15,9 +15,6 @@ import AdminPage from "./pages/AdminPage";
 import LoginPage from "./pages/LoginPage";
 import QuestionsPage from "./pages/QuestionsPage";
 
-// IMPORTACIÓN DEL BOTÓN DE INSTALACIÓN
-import InstallButton from "./InstallButton";
-
 export default function App() {
   return (
     // 🌟 AQUÍ ESTÁ LA MAGIA: El Fondo de Seda Premium 🌟
@@ -54,9 +51,6 @@ export default function App() {
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-
-              <InstallButton />
-              
             </CartProvider>
           </AppProvider>
         </AuthProvider>

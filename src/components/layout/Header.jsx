@@ -68,7 +68,7 @@ export default function Header({ onProductClick, onFilter }) {
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 h-14 transition-all duration-300">
+    <header className="relative w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 h-14 transition-all duration-300">
       
       {/* 🌟 1. BUSCADOR INTELIGENTE ANIMADO (Reemplaza tu buscador viejo) 🌟 */}
       <div 

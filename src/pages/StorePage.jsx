@@ -7,8 +7,10 @@ import ProductCatalog from "../components/product/ProductCatalog";
 import ProductModal from "../components/product/ProductModal";
 import CartDrawer from "../components/cart/CartDrawer";
 import Footer from "../components/layout/Footer";
+import HappyCustomers from "../components/layout/HappyCustomers";
 import InstallButton from "../InstallButton";
 import WhatsAppVIP from "../components/layout/WhatsAppVIP";
+import CreateStorePromo from "../components/layout/CreateStorePromo";
 
 import { useCart } from "../context/CartContext";
 import { useApp } from "../context/AppContext";
@@ -103,6 +105,7 @@ export default function StorePage() {
             onFilter={handleFilter} 
           />
           
+          {activeFilter === "all" && <HappyCustomers />}
           <Footer />
         </div>
       </div>
@@ -116,6 +119,7 @@ export default function StorePage() {
       
       <CartDrawer />
       
+      {showFloatingElements && <CreateStorePromo />}
       {showFloatingElements && <WhatsAppVIP />}
       
       <InstallButton />

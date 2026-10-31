@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 export default function AdminSettings() {
-  const { settings, updateSettings } = useApp();
+  const { settings, loading, updateSettings } = useApp();
   
   const [form, setForm] = useState({
     exchangeRate: settings.exchangeRate || "",
@@ -25,6 +25,29 @@ export default function AdminSettings() {
       message: "¡Hola Luckathys! 💖 Estoy viendo la tienda y me gustaría recibir asesoría personalizada."
     }
   });
+
+  useEffect(() => {
+    if (!loading && settings) {
+      setForm({
+        exchangeRate: settings.exchangeRate || "",
+        whatsappNumber: settings.whatsappNumber || "",
+        primaryColor: settings.primaryColor || "#ec4899",
+        quickButtons: settings.quickButtons || [
+          { id: 'cat', label: 'Catálogo', icon: '🛍️', filter: 'all' },
+          { id: 'ofertas', label: 'Ofertas', icon: '🔥', filter: 'ofertas' },
+          { id: 'top', label: 'Top Ventas', icon: '🏆', filter: 'top' },
+          { id: 'new', label: 'Lo Último', icon: '✨', filter: 'new' }
+        ],
+        socialLinks: settings.socialLinks || { instagram: "", tiktok: "", whatsapp: "" },
+        customIcons: settings.customIcons || { whatsapp: "", instagram: "", tiktok: "" },
+        whatsappWidget: settings.whatsappWidget || {
+          active: true,
+          number: "",
+          message: "¡Hola Luckathys! 💖 Estoy viendo la tienda y me gustaría recibir asesoría personalizada."
+        }
+      });
+    }
+  }, [loading, settings]);
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(null);

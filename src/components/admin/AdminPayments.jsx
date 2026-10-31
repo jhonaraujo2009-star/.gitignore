@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp
 } from "firebase/firestore";
@@ -116,11 +116,13 @@ export default function AdminPayments() {
   const [payments, setPayments] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editPayment, setEditPayment] = useState(null);
+  const seededRef = useRef(false);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "payments"), (snap) => {
       const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      if (data.length === 0) {
+      if (data.length === 0 && !seededRef.current) {
+        seededRef.current = true;
         addDoc(collection(db, "payments"), { ...SEED, createdAt: serverTimestamp() });
       }
       setPayments(data);

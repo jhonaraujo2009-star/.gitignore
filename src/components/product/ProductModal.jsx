@@ -83,7 +83,7 @@ export default function ProductModal({ product, onClose }) {
   const handleAddToCart = () => {
     if (hasVariants && !selectedVariant) return toast.error("Selecciona una talla o medida");
     if (quantity > availableStock) return toast.error("Supera el stock disponible");
-    addItem({ ...product, price: finalPrice, oldPrice }, selectedVariant, quantity);
+    addItem(product, selectedVariant, quantity);
     toast.success("¡Excelente elección! 🛍️");
     onClose();
   };

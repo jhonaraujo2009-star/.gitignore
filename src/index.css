@@ -38,10 +38,15 @@ html {
 
 /* Image lazy loading fade-in */
 img[loading="lazy"] {
-  opacity: 0;
   transition: opacity 0.3s;
 }
 
-img[loading="lazy"].loaded {
-  opacity: 1;
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
 }

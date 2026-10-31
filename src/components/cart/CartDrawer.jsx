@@ -189,24 +189,35 @@ export default function CartDrawer() {
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Método de Pago 🇻🇪</label>
                 <div className="space-y-2">
-                  {paymentMethods.map((pm) => (
-                    <div 
-                      key={pm.id} 
-                      className="w-full flex items-center gap-4 p-4 rounded-[1.8rem] border-2 border-pink-500 bg-pink-50 shadow-md"
-                    >
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm">
-                        {pm.bankName.toLowerCase().includes('zelle') ? "💎" : "🏦"}
-                      </div>
-                      <div className="text-left flex-1">
-                        <p className="text-[13px] font-black text-gray-800 uppercase leading-none mb-1">{pm.bankName}</p>
-                        <p className="text-[10px] font-bold text-gray-400">{pm.holderName}</p>
-                        {pm.idNumber && <p className="text-[10px] font-bold text-gray-500 mt-0.5">{pm.idNumber}</p>}
-                        {pm.phone && <p className="text-[10px] font-bold text-pink-500 mt-0.5">📲 {pm.phone}</p>}
-                        {pm.accountNumber && <p className="text-[10px] font-bold text-gray-400 mt-0.5">Cta: {pm.accountNumber}</p>}
-                      </div>
-                      <div className="ml-auto text-pink-500 text-lg">✔</div>
-                    </div>
-                  ))}
+                  {paymentMethods.map((pm) => {
+                    const isSelected = selectedPayment?.id === pm.id;
+                    return (
+                      <button
+                        key={pm.id}
+                        type="button"
+                        onClick={() => setSelectedPayment(pm)}
+                        className={`w-full flex items-center gap-4 p-4 rounded-[1.8rem] border-2 transition-all text-left ${
+                          isSelected
+                            ? "border-pink-500 bg-pink-50 shadow-md"
+                            : "border-gray-100 bg-gray-50/50 hover:border-pink-200"
+                        }`}
+                      >
+                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm">
+                          {pm.bankName?.toLowerCase().includes('zelle') ? "💎" : "🏦"}
+                        </div>
+                        <div className="text-left flex-1">
+                          <p className="text-[13px] font-black text-gray-800 uppercase leading-none mb-1">{pm.bankName}</p>
+                          <p className="text-[10px] font-bold text-gray-400">{pm.holderName}</p>
+                          {pm.idNumber && <p className="text-[10px] font-bold text-gray-500 mt-0.5">{pm.idNumber}</p>}
+                          {pm.phone && <p className="text-[10px] font-bold text-pink-500 mt-0.5">📲 {pm.phone}</p>}
+                          {pm.accountNumber && <p className="text-[10px] font-bold text-gray-400 mt-0.5">Cta: {pm.accountNumber}</p>}
+                        </div>
+                        <div className={`ml-auto text-lg ${isSelected ? "text-pink-500" : "text-gray-200"}`}>
+                          {isSelected ? "✔" : "○"}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

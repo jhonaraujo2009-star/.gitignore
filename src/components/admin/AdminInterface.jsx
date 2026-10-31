@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 // Eliminamos las importaciones de Firebase Storage que daban error
 import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 export default function AdminInterface() {
-  const { settings, updateSettings } = useApp();
+  const { settings, loading, updateSettings } = useApp();
   const [form, setForm] = useState({
     announcementText: settings.announcementText || "",
     heroTitle: settings.heroTitle || "",
@@ -13,6 +13,18 @@ export default function AdminInterface() {
     legalText: settings.legalText || "",
     socialLinks: { ...settings.socialLinks },
   });
+
+  useEffect(() => {
+    if (!loading && settings) {
+      setForm({
+        announcementText: settings.announcementText || "",
+        heroTitle: settings.heroTitle || "",
+        heroDescription: settings.heroDescription || "",
+        legalText: settings.legalText || "",
+        socialLinks: { ...settings.socialLinks },
+      });
+    }
+  }, [loading, settings]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 

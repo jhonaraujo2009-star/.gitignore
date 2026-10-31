@@ -69,17 +69,9 @@ export default function ProductCard({ product, onClick, rank }) {
     return () => clearInterval(interval);
   }, [endTime, isFlashOffer]);
 
-  // 🌟 TRUCO MÁGICO: Clonamos el producto con los precios matemáticos 
-  // para que al tocarlo, el carrito cobre el precio con el descuento extra.
-  const productWithFinalPrice = {
-    ...product,
-    price: Number(finalPrice.toFixed(2)),
-    oldPrice: displayCrossedPrice
-  };
-
   return (
     <button
-      onClick={() => !isSoldOut && onClick(productWithFinalPrice)}
+      onClick={() => !isSoldOut && onClick(product)}
       className={`relative text-left bg-white/80 backdrop-blur-sm rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 active:scale-95 border border-white w-full group ${isSoldOut ? "opacity-70 cursor-default" : "cursor-pointer"}`}
     >
       {rank && (

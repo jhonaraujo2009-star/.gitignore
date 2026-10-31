@@ -414,7 +414,7 @@ export default function AdminProducts() {
                                 </div>
                               </div>
 
-                              <div className="flex gap-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                              <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity">
                                 <button onClick={(e) => editProduct(p, e)} className="p-2 rounded-xl bg-white shadow-sm border border-gray-100 text-gray-500 hover:text-pink-500 hover:border-pink-200 transition-all text-sm">✏️</button>
                                 <button onClick={(e) => deleteProduct(p.id, e)} className="p-2 rounded-xl bg-white shadow-sm border border-gray-100 text-gray-500 hover:text-red-500 hover:border-red-200 transition-all text-sm">🗑️</button>
                               </div>

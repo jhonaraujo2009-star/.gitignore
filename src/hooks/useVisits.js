@@ -7,8 +7,9 @@ export function useVisits() {
 
   useEffect(() => {
     const trackAndFetch = async () => {
-      // Obtener fecha actual en formato YYYY-MM-DD
-      const today = new Date().toISOString().split("T")[0];
+      // Obtener fecha actual en hora local en formato YYYY-MM-DD
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const lastVisit = localStorage.getItem("lastVisitDate");
       const docRef = doc(db, "stats", "visits");
 
