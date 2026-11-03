@@ -1,7 +1,6 @@
 import imageCompression from "browser-image-compression";
 
-const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dp3abweme/image/upload";
-const UPLOAD_PRESET = "tienda_maquillaje";
+const UPLOAD_URL = "/api/upload";
 
 // Opciones de compresión
 const compressionOptions = {
@@ -12,24 +11,29 @@ const compressionOptions = {
 };
 
 /**
- * Comprime una imagen y la sube a Cloudinary.
- * Retorna la URL segura de la imagen subida.
+ * Comprime una imagen y la sube al servidor local (/api/upload).
+ * Retorna la URL pública de la imagen subida (/uploads/...).
  */
 export const compressAndUpload = async (file) => {
   // 1. Comprimir la imagen
-  const compressedFile = await imageCompression(file, compressionOptions);
+  const compressedBlob = await imageCompression(file, compressionOptions);
 
-  // 2. Subir a Cloudinary
+  // Asegurar que el archivo tenga un nombre con extensión .webp
+  const originalBase = (file.name || "imagen").replace(/\.[^/.]+$/, "");
+  const finalFile = new File([compressedBlob], `${originalBase}.webp`, {
+    type: "image/webp",
+  });
+
+  // 2. Subir al servidor local
   const formData = new FormData();
-  formData.append("file", compressedFile);
-  formData.append("upload_preset", UPLOAD_PRESET);
+  formData.append("file", finalFile);
 
-  const res = await fetch(CLOUDINARY_URL, {
+  const res = await fetch(UPLOAD_URL, {
     method: "POST",
     body: formData,
   });
 
-  if (!res.ok) throw new Error("Error al subir a Cloudinary");
+  if (!res.ok) throw new Error("Error al subir la imagen al servidor");
   const data = await res.json();
-  return data.secure_url;
+  return data.url || data.secure_url;
 };

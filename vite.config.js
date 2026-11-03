@@ -17,7 +17,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true, // Elimina versiones antiguas de la app en el celular del cliente
         clientsClaim: true,          // Toma el control de la app inmediatamente sin recargar
         skipWaiting: true,           // Fuerza a que la nueva versión se instale sin esperar
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'] // Asegura que descargue todo lo necesario
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'], // Asegura que descargue todo lo necesario
+        navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//] // No interceptar API ni imágenes locales
       },
       
       // El Manifiesto que lee Android para instalar la App
@@ -54,6 +55,12 @@ export default defineConfig({
       }
     })
   ],
+  server: {
+    proxy: {
+      "/api": "http://localhost:3000",
+      "/uploads": "http://localhost:3000",
+    },
+  },
   build: {
     outDir: "dist",
     sourcemap: false,

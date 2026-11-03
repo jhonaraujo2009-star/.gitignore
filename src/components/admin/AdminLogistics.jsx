@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import {
   collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs, query, where
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../../config/firebase";
+import { db } from "../../config/firebase";
 import toast from "react-hot-toast";
+import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 const LOGISTICS_IDS = ["mrw", "zoom", "tealca"];
 
@@ -30,9 +30,7 @@ export default function AdminLogistics() {
   const uploadLogo = async (id, file) => {
     setUploading({ ...uploading, [id]: true });
     try {
-      const r = ref(storage, `logistics/${id}`);
-      await uploadBytes(r, file);
-      const url = await getDownloadURL(r);
+      const url = await compressAndUpload(file);
       await setDoc(doc(db, "logistics", id), {
         name: id.toUpperCase(),
         logo: url,

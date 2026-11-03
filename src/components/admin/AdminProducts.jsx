@@ -85,7 +85,7 @@ function ProductForm({ sessions, product, onClose }) {
       toast.success("Imágenes listas");
     } catch (error) {
       console.error(error);
-      toast.error("Error al subir a Cloudinary");
+      toast.error("Error al subir las imágenes");
     } finally {
       setUploading(false);
     }

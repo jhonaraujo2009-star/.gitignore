@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../../config/firebase";
+import { db } from "../../config/firebase";
 import toast from "react-hot-toast";
+import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 const SEED = {
   bankName: "Banco de Venezuela",
@@ -35,10 +35,11 @@ function PaymentForm({ payment, onClose }) {
     if (!file) return;
     setUploading(true);
     try {
-      const r = ref(storage, `payments/${Date.now()}-${file.name}`);
-      await uploadBytes(r, file);
-      const url = await getDownloadURL(r);
+      const url = await compressAndUpload(file);
       setForm({ ...form, logo: url });
+      toast.success("Logo subido ✅");
+    } catch {
+      toast.error("Error al subir logo");
     } finally {
       setUploading(false);
     }
