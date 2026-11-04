@@ -2,17 +2,17 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // 1. Manejo inteligente de imágenes /uploads/ desde Cloudflare R2
+    // 1. Manejo inteligente de imágenes /uploads/ desde Cloudflare R2 y Servidor Local
     if (url.pathname.startsWith("/uploads/")) {
       const filename = url.pathname.replace(/^\/uploads\//, "");
       if (!filename) {
         return new Response("Not Found", { status: 404 });
       }
 
-      // Intentar servir el archivo desde R2 (fotos.lkth91ofertas.com)
+      // A. Intentar servir el archivo desde R2 (fotos.lkth91ofertas.com)
       let res = await fetch(`https://fotos.lkth91ofertas.com/${filename}`);
 
-      // Si no existe con esa extensión (ej. se guardó como .webp y se pidió como .jpg), intentar con .webp
+      // B. Si no existe con esa extensión (ej. se guardó como .webp y se pidió como .jpg), intentar con .webp
       if (res.status === 404) {
         const baseName = filename.replace(/\.[^/.]+$/, "");
         const webpRes = await fetch(`https://fotos.lkth91ofertas.com/${baseName}.webp`);
@@ -21,9 +21,26 @@ export default {
         }
       }
 
-      // Devolver la imagen con caché agresivo en el navegador y Cloudflare CDN
+      // C. Si R2 aún no la tiene (recién subida o en sincronización), buscar en el servidor local de la PC
+      if (res.status === 404) {
+        try {
+          const localRes = await fetch(`https://api.lkth91ofertas.com/uploads/${filename}`);
+          if (localRes.ok) {
+            res = localRes;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // Solo aplicar caché de 1 año si la imagen existe (200 OK). Jamás cachear errores 404.
       const newHeaders = new Headers(res.headers);
-      newHeaders.set("cache-control", "public, max-age=31536000, immutable");
+      if (res.ok) {
+        newHeaders.set("cache-control", "public, max-age=31536000, immutable");
+      } else {
+        newHeaders.set("cache-control", "no-store, no-cache, must-revalidate");
+      }
+
       return new Response(res.body, {
         status: res.status,
         headers: newHeaders,

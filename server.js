@@ -110,18 +110,21 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
       await fs.promises.unlink(uploadedPath);
     }
 
-    // Respaldo instantáneo en segundo plano a Cloudflare R2
-    s3R2.send(new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: webpFilename,
-      Body: optimizedBuffer,
-      ContentType: "image/webp",
-      CacheControl: "public, max-age=31536000, immutable"
-    })).then(() => {
+    // Respaldo instantáneo a Cloudflare R2 con await (garantiza que esté en R2 antes de responder al navegador)
+    try {
+      await s3R2.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: webpFilename,
+          Body: optimizedBuffer,
+          ContentType: "image/webp",
+          CacheControl: "public, max-age=31536000, immutable",
+        })
+      );
       console.log(`☁️ Imagen ${webpFilename} respaldada exitosamente en Cloudflare R2`);
-    }).catch((err) => {
+    } catch (err) {
       console.error(`⚠️ Error respaldando ${webpFilename} en R2:`, err.message);
-    });
+    }
 
     const relativeUrl = `/uploads/${webpFilename}`;
     return res.json({

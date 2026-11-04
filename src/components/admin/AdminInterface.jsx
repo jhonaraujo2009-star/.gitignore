@@ -49,7 +49,8 @@ export default function AdminInterface() {
     setUploadingProfile(true);
     try {
       const url = await compressAndUpload(file);
-      await updateSettings({ profileImage: url });
+      const finalUrl = `${url}?v=${Date.now()}`;
+      await updateSettings({ profileImage: finalUrl });
       toast.success("Foto de perfil actualizada ✅");
     } catch (error) {
       console.error(error);
@@ -70,7 +71,8 @@ export default function AdminInterface() {
     setUploadingIcon(true);
     try {
       const url = await compressAndUpload(file);
-      await updateSettings({ appIcon: url });
+      const finalUrl = `${url}?v=${Date.now()}`;
+      await updateSettings({ appIcon: finalUrl });
       toast.success("Icono de la aplicación actualizado ✅");
     } catch (error) {
       console.error(error);
@@ -96,7 +98,8 @@ export default function AdminInterface() {
     setUploadingSplash(true);
     try {
       const url = await compressAndUpload(file);
-      await updateSettings({ splashImage: url, splashEnabled: true });
+      const finalUrl = `${url}?v=${Date.now()}`;
+      await updateSettings({ splashImage: finalUrl, splashEnabled: true });
       setForm((prev) => ({ ...prev, splashEnabled: true }));
       toast.success("Imagen de bienvenida a pantalla completa lista ✅");
     } catch (error) {
