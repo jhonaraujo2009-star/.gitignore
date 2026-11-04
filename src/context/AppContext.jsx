@@ -12,6 +12,9 @@ const DEFAULT_SETTINGS = {
   primaryColor: "#ec4899",
   announcementText: "🚚 Envíos gratis por MRW a partir de $50",
   profileImage: "",
+  appIcon: "",
+  splashImage: "",
+  splashEnabled: true,
   heroTitle: "Moda & Belleza ✨",
   heroDescription: "Descubre nuestra colección exclusiva de ropa y maquillaje. Calidad y estilo en un solo lugar.",
   socialLinks: {

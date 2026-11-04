@@ -7,7 +7,7 @@ import ProductCatalog from "../components/product/ProductCatalog";
 import ProductModal from "../components/product/ProductModal";
 import CartDrawer from "../components/cart/CartDrawer";
 import Footer from "../components/layout/Footer";
-import HappyCustomers from "../components/layout/HappyCustomers";
+import SplashScreen from "../components/layout/SplashScreen";
 import InstallButton from "../InstallButton";
 import WhatsAppVIP from "../components/layout/WhatsAppVIP";
 import CreateStorePromo from "../components/layout/CreateStorePromo";
@@ -105,10 +105,11 @@ export default function StorePage() {
             onFilter={handleFilter} 
           />
           
-          {activeFilter === "all" && <HappyCustomers />}
           <Footer />
         </div>
       </div>
+
+      <SplashScreen />
 
       {selectedProduct && (
         <ProductModal

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-// Eliminamos las importaciones de Firebase Storage que daban error
 import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
+import SplashScreen from "../layout/SplashScreen";
 
 export default function AdminInterface() {
   const { settings, loading, updateSettings, serverOnline } = useApp();
@@ -11,8 +11,15 @@ export default function AdminInterface() {
     heroTitle: settings.heroTitle || "",
     heroDescription: settings.heroDescription || "",
     legalText: settings.legalText || "",
+    splashEnabled: settings.splashEnabled !== false,
     socialLinks: { ...settings.socialLinks },
   });
+
+  const [uploadingProfile, setUploadingProfile] = useState(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const [uploadingSplash, setUploadingSplash] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [previewSplash, setPreviewSplash] = useState(false);
 
   useEffect(() => {
     if (!loading && settings) {
@@ -21,15 +28,13 @@ export default function AdminInterface() {
         heroTitle: settings.heroTitle || "",
         heroDescription: settings.heroDescription || "",
         legalText: settings.legalText || "",
+        splashEnabled: settings.splashEnabled !== false,
         socialLinks: { ...settings.socialLinks },
       });
     }
   }, [loading, settings]);
-  const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  // Subida a Cloudinary con compresión (función centralizada)
-
+  // 1. Subida de Foto de Perfil (Banner circular)
   const handleProfileImage = async (e) => {
     if (!serverOnline) {
       toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
@@ -37,7 +42,7 @@ export default function AdminInterface() {
     }
     const file = e.target.files[0];
     if (!file) return;
-    setUploading(true);
+    setUploadingProfile(true);
     try {
       const url = await compressAndUpload(file);
       await updateSettings({ profileImage: url });
@@ -46,37 +51,68 @@ export default function AdminInterface() {
       console.error(error);
       toast.error(error.message || "Error al subir foto de perfil");
     } finally {
-      setUploading(false);
+      setUploadingProfile(false);
     }
   };
 
-  const handleHappyCustomerUpload = async (e) => {
+  // 2. Subida del Icono Simple de la Aplicación (Logo)
+  const handleAppIcon = async (e) => {
     if (!serverOnline) {
       toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
       return;
     }
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-    setUploading(true);
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingIcon(true);
     try {
-      const urls = await Promise.all(
-        files.map((f) => compressAndUpload(f))
-      );
-      const existing = settings.happyCustomerImages || [];
-      await updateSettings({ happyCustomerImages: [...existing, ...urls] });
-      toast.success(`${urls.length} imagen(es) subida(s) ✅`);
+      const url = await compressAndUpload(file);
+      await updateSettings({ appIcon: url });
+      toast.success("Icono de la aplicación actualizado ✅");
     } catch (error) {
       console.error(error);
-      toast.error(error.message || "Error al subir imágenes del carrusel");
+      toast.error(error.message || "Error al subir icono");
     } finally {
-      setUploading(false);
+      setUploadingIcon(false);
     }
   };
 
-  const removeHappyCustomer = async (url) => {
-    const updated = (settings.happyCustomerImages || []).filter((u) => u !== url);
-    await updateSettings({ happyCustomerImages: updated });
-    toast.success("Imagen eliminada");
+  const removeAppIcon = async () => {
+    await updateSettings({ appIcon: "" });
+    toast.success("Icono eliminado");
+  };
+
+  // 3. Subida de Imagen de Bienvenida a Pantalla Completa (Tipo App Nihao)
+  const handleSplashImage = async (e) => {
+    if (!serverOnline) {
+      toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
+      return;
+    }
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingSplash(true);
+    try {
+      const url = await compressAndUpload(file);
+      await updateSettings({ splashImage: url, splashEnabled: true });
+      setForm((prev) => ({ ...prev, splashEnabled: true }));
+      toast.success("Imagen de bienvenida a pantalla completa lista ✅");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Error al subir imagen de bienvenida");
+    } finally {
+      setUploadingSplash(false);
+    }
+  };
+
+  const removeSplashImage = async () => {
+    await updateSettings({ splashImage: "" });
+    toast.success("Imagen de bienvenida eliminada");
+  };
+
+  const toggleSplash = async () => {
+    const nextVal = !form.splashEnabled;
+    setForm((prev) => ({ ...prev, splashEnabled: nextVal }));
+    await updateSettings({ splashEnabled: nextVal });
+    toast.success(nextVal ? "Pantalla de bienvenida activada" : "Pantalla de bienvenida desactivada");
   };
 
   const handleSave = async () => {
@@ -93,68 +129,269 @@ export default function AdminInterface() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">🎨 Gestor de Interfaz</h2>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-2xl font-bold text-gray-900">🎨 Gestor de Interfaz</h2>
+      </div>
 
-      {/* Profile image */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm">
-        <h3 className="font-bold text-gray-800 mb-4">Foto de Perfil</h3>
+      {/* 🌟 1. ICONO SIMPLE DE LA APLICACIÓN 🌟 */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+              <span>📱</span> Icono Simple de la Aplicación
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Es el logo o icono que se muestra en la cabecera de la tienda y como acceso directo en el celular.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 mt-4">
+          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50 border-2 border-gray-100 flex items-center justify-center shadow-inner flex-shrink-0">
+            {settings?.appIcon ? (
+              <img src={settings.appIcon} alt="App Icon" className="w-full h-full object-contain p-1" />
+            ) : (
+              <span className="text-2xl">🛍️</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <label
+              className={`px-4 py-2.5 rounded-2xl border-2 border-dashed text-xs font-bold transition-all ${
+                serverOnline
+                  ? "cursor-pointer border-pink-300 text-pink-600 hover:bg-pink-50/50"
+                  : "cursor-not-allowed border-amber-300 bg-amber-50/50 text-amber-800 opacity-70"
+              }`}
+            >
+              {!serverOnline ? "🔒 PC Apagada" : uploadingIcon ? "Subiendo icono..." : "Subir nuevo icono"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAppIcon}
+                className="hidden"
+                disabled={uploadingIcon || !serverOnline}
+              />
+            </label>
+
+            {settings?.appIcon && (
+              <button
+                type="button"
+                onClick={removeAppIcon}
+                className="px-3 py-2 rounded-2xl text-xs font-bold text-red-500 hover:bg-red-50 transition-colors"
+              >
+                Eliminar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 🌟 2. IMAGEN DE BIENVENIDA A PANTALLA COMPLETA (TIPO APP NIHAO / SHEIN) 🌟 */}
+      <div className="bg-gradient-to-br from-purple-50/50 via-white to-pink-50/50 rounded-3xl p-6 shadow-sm border border-purple-100/80">
+        <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">✨</span>
+              <h3 className="font-extrabold text-gray-950 text-lg">
+                Pantalla de Apertura Completa (Estilo App Nihao)
+              </h3>
+            </div>
+            <p className="text-xs text-gray-600 mt-1 max-w-lg leading-relaxed">
+              Al abrir la tienda en el celular, esta imagen abarcará el <strong>100% de la pantalla del teléfono</strong> con un botón flotante para saltar o entrar directo al catálogo, tal como las apps de moda de Nihao o Shein.
+            </p>
+          </div>
+
+          {/* Toggle de activación */}
+          {settings?.splashImage && (
+            <button
+              type="button"
+              onClick={toggleSplash}
+              className={`px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm ${
+                form.splashEnabled
+                  ? "bg-emerald-500 text-white shadow-emerald-500/20"
+                  : "bg-gray-200 text-gray-600"
+              }`}
+            >
+              <span>{form.splashEnabled ? "● Activada" : "○ Pausada"}</span>
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center mt-5">
+          {/* Previsualización en marco simulado de celular */}
+          <div className="flex flex-col items-center">
+            <span className="text-[11px] font-black uppercase tracking-wider text-gray-400 mb-2">
+              Vista previa en Celular (9:16)
+            </span>
+            <div className="relative w-44 aspect-[9/16] rounded-[2rem] p-2 bg-gray-900 shadow-2xl border-4 border-gray-800 overflow-hidden flex flex-col justify-between">
+              {/* Notcht / speaker */}
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-16 h-3.5 bg-black rounded-full z-10" />
+
+              {settings?.splashImage ? (
+                <>
+                  <img
+                    src={settings.splashImage}
+                    alt="Splash Preview"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <div className="absolute top-7 right-3 z-10 bg-black/60 text-white text-[8px] font-bold px-2 py-0.5 rounded-full">
+                    Saltar (5s) ✕
+                  </div>
+                  <div className="absolute bottom-5 left-3 right-3 z-10 bg-white/90 text-gray-900 text-[9px] font-black uppercase py-2 text-center rounded-xl shadow-lg">
+                    Entrar a la tienda 🛍️
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full rounded-2xl bg-gray-800/80 flex flex-col items-center justify-center text-center p-3 text-gray-400">
+                  <span className="text-3xl mb-2">📲</span>
+                  <span className="text-[10px] font-bold leading-tight">Sin imagen de apertura vertical</span>
+                  <span className="text-[8px] text-gray-500 mt-1">Sube una foto vertical (ej. 1080x1920)</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="space-y-4">
+            <label
+              className={`w-full py-4 px-6 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center text-center transition-all ${
+                serverOnline
+                  ? "cursor-pointer border-purple-300 bg-white hover:bg-purple-50/50 shadow-sm"
+                  : "cursor-not-allowed border-amber-300 bg-amber-50/50 text-amber-800 opacity-70"
+              }`}
+            >
+              <span className="text-2xl mb-1">{!serverOnline ? "🔒" : uploadingSplash ? "⏳" : "🖼️"}</span>
+              <span className="text-xs font-black text-purple-900">
+                {!serverOnline
+                  ? "Subida bloqueada (PC Servidor Apagada)"
+                  : uploadingSplash
+                  ? "Subiendo imagen vertical..."
+                  : settings?.splashImage
+                  ? "Cambiar imagen de apertura completa"
+                  : "Subir imagen vertical (Pantalla completa)"}
+              </span>
+              <span className="text-[10px] text-gray-400 mt-1">Recomendado: 1080 x 1920 px (Formato teléfono)</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleSplashImage}
+                className="hidden"
+                disabled={uploadingSplash || !serverOnline}
+              />
+            </label>
+
+            {settings?.splashImage && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewSplash(true)}
+                  className="flex-1 py-3 px-4 rounded-2xl bg-gray-900 hover:bg-black text-white text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-md"
+                >
+                  <span>👁️ Probar en Pantalla Completa</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={removeSplashImage}
+                  className="py-3 px-4 rounded-2xl border border-red-200 text-red-500 hover:bg-red-50 text-xs font-bold transition-colors"
+                >
+                  Eliminar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 🌟 3. FOTO DE PERFIL / BANNER CIRCULAR 🌟 */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <h3 className="font-bold text-gray-800 mb-1">Foto de Perfil Circular (Banner)</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Aparece en el círculo central sobre la descripción de bienvenida.
+        </p>
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+          <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 border-2 border-pink-200 shadow-sm">
             {settings.profileImage ? (
               <img src={settings.profileImage} alt="Profile" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-3xl">✨</div>
             )}
           </div>
-          <label className={`px-4 py-2 rounded-2xl border-2 border-dashed text-sm transition-colors ${
-            serverOnline
-              ? "cursor-pointer border-gray-300 text-gray-500 hover:border-pink-300"
-              : "cursor-not-allowed border-amber-300 bg-amber-50/50 text-amber-800 opacity-70"
-          }`}>
-            {!serverOnline ? "🔒 PC Apagada" : uploading ? "Subiendo..." : "Cambiar foto"}
-            <input type="file" accept="image/*" onChange={handleProfileImage} className="hidden" disabled={uploading || !serverOnline} />
+          <label
+            className={`px-4 py-2.5 rounded-2xl border-2 border-dashed text-sm font-bold transition-colors ${
+              serverOnline
+                ? "cursor-pointer border-gray-300 text-gray-600 hover:border-pink-300 hover:bg-pink-50/30"
+                : "cursor-not-allowed border-amber-300 bg-amber-50/50 text-amber-800 opacity-70"
+            }`}
+          >
+            {!serverOnline ? "🔒 PC Apagada" : uploadingProfile ? "Subiendo..." : "Cambiar foto"}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleProfileImage}
+              className="hidden"
+              disabled={uploadingProfile || !serverOnline}
+            />
           </label>
         </div>
       </div>
 
-      {/* Text content */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm space-y-4">
+      {/* 🌟 4. TEXTOS DE LA TIENDA 🌟 */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
         <h3 className="font-bold text-gray-800">Textos de la tienda</h3>
 
         <div>
           <label className="block text-sm font-semibold text-gray-600 mb-1">Cintillo promocional</label>
-          <input value={form.announcementText} onChange={(e) => setForm({ ...form, announcementText: e.target.value })}
-            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-pink-300" />
+          <input
+            value={form.announcementText}
+            onChange={(e) => setForm({ ...form, announcementText: e.target.value })}
+            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-pink-300"
+          />
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-gray-600 mb-1">Título principal</label>
-          <input value={form.heroTitle} onChange={(e) => setForm({ ...form, heroTitle: e.target.value })}
-            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-pink-300" />
+          <input
+            value={form.heroTitle}
+            onChange={(e) => setForm({ ...form, heroTitle: e.target.value })}
+            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-pink-300"
+          />
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-gray-600 mb-1">Descripción de bienvenida</label>
-          <textarea value={form.heroDescription} onChange={(e) => setForm({ ...form, heroDescription: e.target.value })}
-            rows={3} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-pink-300 resize-none" />
+          <textarea
+            value={form.heroDescription}
+            onChange={(e) => setForm({ ...form, heroDescription: e.target.value })}
+            rows={3}
+            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-pink-300 resize-none"
+          />
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-gray-600 mb-1">Texto legal / políticas</label>
-          <textarea value={form.legalText} onChange={(e) => setForm({ ...form, legalText: e.target.value })}
-            rows={4} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-pink-300 resize-none" />
+          <textarea
+            value={form.legalText}
+            onChange={(e) => setForm({ ...form, legalText: e.target.value })}
+            rows={4}
+            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-pink-300 resize-none"
+          />
         </div>
       </div>
 
-      {/* Social links */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm space-y-3">
+      {/* 🌟 5. REDES SOCIALES 🌟 */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-3">
         <h3 className="font-bold text-gray-800">Redes Sociales</h3>
         {["instagram", "tiktok", "facebook", "twitter"].map((net) => (
           <div key={net}>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">{net}</label>
             <input
               value={form.socialLinks[net] || ""}
-              onChange={(e) => setForm({ ...form, socialLinks: { ...form.socialLinks, [net]: e.target.value } })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  socialLinks: { ...form.socialLinks, [net]: e.target.value },
+                })
+              }
               placeholder={`https://${net}.com/tutienda`}
               className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-pink-300"
             />
@@ -162,41 +399,19 @@ export default function AdminInterface() {
         ))}
       </div>
 
-      {/* Happy customers carrusel */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm">
-        <h3 className="font-bold text-gray-800 mb-3">Carrusel "Clientes Felices"</h3>
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          {(settings.happyCustomerImages || []).map((url, i) => (
-            <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
-              <img src={url} alt="" className="w-full h-full object-cover" />
-              <button
-                onClick={() => removeHappyCustomer(url)}
-                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
-              >×</button>
-            </div>
-          ))}
-          <label className={`aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-colors ${
-            serverOnline
-              ? "border-gray-300 cursor-pointer hover:border-pink-300"
-              : "border-amber-300 bg-amber-50/50 cursor-not-allowed opacity-70"
-          }`}>
-            {!serverOnline ? (
-              <span className="text-xs text-amber-800 font-bold">🔒</span>
-            ) : uploading ? (
-              <span className="text-xs text-gray-400 animate-pulse">...</span>
-            ) : (
-              <span className="text-gray-400 text-2xl">+</span>
-            )}
-            <input type="file" accept="image/*" multiple onChange={handleHappyCustomerUpload} className="hidden" disabled={uploading || !serverOnline} />
-          </label>
-        </div>
-      </div>
-
-      <button onClick={handleSave} disabled={saving || uploading}
-        className="w-full py-4 rounded-2xl text-white font-bold disabled:opacity-50"
-        style={{ background: "var(--primary)" }}>
-        {saving ? "Guardando..." : "Guardar cambios"}
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="w-full py-4 rounded-2xl text-white font-bold disabled:opacity-50 transition-all active:scale-[0.99] shadow-lg"
+        style={{ background: "var(--primary)" }}
+      >
+        {saving ? "Guardando..." : "Guardar cambios de la interfaz"}
       </button>
+
+      {/* Vista previa en pantalla completa al probarla en el panel admin */}
+      {previewSplash && (
+        <SplashScreen forceShow={true} onClose={() => setPreviewSplash(false)} />
+      )}
     </div>
   );
 }

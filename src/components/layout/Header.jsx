@@ -4,10 +4,12 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
+import { useApp } from "../../context/AppContext";
 import VisitCounter from "./VisitCounter";
 
 // 🌟 MAGIA: Añadimos onFilter aquí arriba sin borrar onProductClick
 export default function Header({ onProductClick, onFilter }) {
+  const { settings } = useApp();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -128,12 +130,19 @@ export default function Header({ onProductClick, onFilter }) {
         
         {/* Logo (Ahora resetea los filtros al tocarlo) */}
         <div 
-          className="flex-shrink-0 cursor-pointer" 
+          className="flex-shrink-0 cursor-pointer flex items-center gap-2" 
           onClick={() => { 
             if(onFilter) onFilter("all"); 
             window.scrollTo(0, 0); 
           }}
         >
+          {settings?.appIcon ? (
+            <img
+              src={settings.appIcon}
+              alt="Logo"
+              className="w-8 h-8 rounded-full object-cover shadow-sm border border-pink-200 bg-white"
+            />
+          ) : null}
           <span className="text-xl font-black tracking-tighter uppercase" style={{ color: "var(--primary)" }}>
             ✨ Luckathys
           </span>
