@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "destination": "https://lkth91ofertas.com/:path*",
+      "permanent": true
+    }
+  ]
+}
