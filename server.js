@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import cors from "cors";
 import sharp from "sharp";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -19,6 +20,17 @@ const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+// Cliente Cloudflare R2 para respaldo automático en la nube
+const s3R2 = new S3Client({
+  region: "auto",
+  endpoint: "https://1810a3e6e46fe12fb0ec663379858a54.r2.cloudflarestorage.com",
+  credentials: {
+    accessKeyId: "da234b11a3e00c3568656878409fe385",
+    secretAccessKey: "e012621e21c22d7ea6433688447ef106aa6443c7cd5c68be7f31f278186180f9"
+  }
+});
+const R2_BUCKET = "tienda-fotos";
 
 app.use(cors());
 app.use(express.json());
@@ -86,6 +98,19 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
     if (webpPath !== uploadedPath && fs.existsSync(uploadedPath)) {
       await fs.promises.unlink(uploadedPath);
     }
+
+    // Respaldo instantáneo en segundo plano a Cloudflare R2
+    s3R2.send(new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: webpFilename,
+      Body: optimizedBuffer,
+      ContentType: "image/webp",
+      CacheControl: "public, max-age=31536000, immutable"
+    })).then(() => {
+      console.log(`☁️ Imagen ${webpFilename} respaldada exitosamente en Cloudflare R2`);
+    }).catch((err) => {
+      console.error(`⚠️ Error respaldando ${webpFilename} en R2:`, err.message);
+    });
 
     const relativeUrl = `/uploads/${webpFilename}`;
     return res.json({

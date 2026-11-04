@@ -6,3 +6,6 @@ config.yml
 *.url
 .env
 *.log
+sync_to_r2.js
+firestore_urls_backup.json
+
