@@ -4,6 +4,7 @@ import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
 import { notifyNewOrder, unlockAudio, shouldNotifyOrder, markOrdersAsKnown } from "../utils/orderNotifications";
+import { checkServerHealth } from "../utils/cloudinaryUpload";
 import toast from "react-hot-toast";
 
 // Admin sub-panels
@@ -33,6 +34,21 @@ export default function AdminPage() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+  const [serverOnline, setServerOnline] = useState(true);
+  const [checkingServer, setCheckingServer] = useState(false);
+
+  const verifyServer = async () => {
+    setCheckingServer(true);
+    const isOnline = await checkServerHealth();
+    setServerOnline(isOnline);
+    setCheckingServer(false);
+  };
+
+  useEffect(() => {
+    verifyServer();
+    const interval = setInterval(verifyServer, 30000); // Chequear cada 30 segundos
+    return () => clearInterval(interval);
+  }, []);
 
   const isInitialLoad = useRef(true);
   const isWidePage = location.pathname.includes("/admin/control") || location.pathname.includes("/admin/facturar");
@@ -124,6 +140,20 @@ export default function AdminPage() {
         </nav>
 
         <div className="p-4 border-t border-gray-100 space-y-2">
+          {/* Indicador de estado del servidor local */}
+          <div className="px-3 py-2 rounded-xl bg-gray-50 border border-gray-200/80 flex items-center justify-between text-xs font-bold">
+            <span className="text-gray-600">Servidor PC:</span>
+            {serverOnline ? (
+              <span className="text-emerald-600 flex items-center gap-1.5 font-black">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Online
+              </span>
+            ) : (
+              <span className="text-amber-600 flex items-center gap-1.5 font-black">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span> Offline
+              </span>
+            )}
+          </div>
+
           <NavLink to="/" className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
             🏠 Ver tienda
           </NavLink>
@@ -170,6 +200,33 @@ export default function AdminPage() {
         </div>
 
         <div className={`p-4 lg:p-8 ${isWidePage ? "max-w-6xl" : "max-w-3xl"}`}>
+          {/* Banner de Modo Solo Lectura si la PC servidor está apagada */}
+          {!serverOnline && (
+            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 text-amber-900 shadow-sm flex items-start gap-3">
+              <span className="text-2xl flex-shrink-0">⚠️</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-black text-sm uppercase tracking-wide text-amber-950">
+                    Modo Solo Lectura Activado
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white uppercase tracking-wider">
+                    PC Desconectada
+                  </span>
+                </div>
+                <p className="text-xs text-amber-800 mt-1.5 leading-relaxed font-medium">
+                  El servidor local de tu PC está apagado. <strong>Tu tienda sigue 100% activa y visible para tus clientes en la nube</strong>, pero no podrás subir imágenes de productos hasta que enciendas tu PC servidor.
+                </p>
+              </div>
+              <button
+                onClick={verifyServer}
+                disabled={checkingServer}
+                className="px-3 py-1.5 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-950 text-xs font-black transition-colors flex-shrink-0"
+              >
+                {checkingServer ? "..." : "🔄 Reintentar"}
+              </button>
+            </div>
+          )}
+
           <Routes>
             <Route index element={<AdminSettings />} />
             <Route path="control" element={<AdminControl />} />

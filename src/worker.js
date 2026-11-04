@@ -30,7 +30,52 @@ export default {
       });
     }
 
-    // 2. Servir los archivos estáticos de la aplicación (HTML, JS, CSS)
+    // 2. Proxy de API (/api/...) hacia el servidor local de la PC (vía api.lkth91ofertas.com)
+    if (url.pathname.startsWith("/api/")) {
+      const targetUrl = `https://api.lkth91ofertas.com${url.pathname}${url.search}`;
+      try {
+        const localReq = new Request(targetUrl, {
+          method: request.method,
+          headers: request.headers,
+          body: request.body,
+          redirect: "follow",
+        });
+
+        const localRes = await fetch(localReq);
+
+        // Si la PC local devolvió error de conexión (túnel caído 502, 503, 504, 530)
+        if ([502, 503, 504, 521, 522, 523, 524, 530].includes(localRes.status)) {
+          return new Response(
+            JSON.stringify({
+              error: "Servidor local desconectado",
+              offline: true,
+              online: false,
+            }),
+            {
+              status: 503,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+            }
+          );
+        }
+
+        return localRes;
+      } catch (err) {
+        return new Response(
+          JSON.stringify({
+            error: "No se pudo conectar con el servidor local",
+            offline: true,
+            online: false,
+            details: err.message,
+          }),
+          {
+            status: 503,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+          }
+        );
+      }
+    }
+
+    // 3. Servir los archivos estáticos de la aplicación (HTML, JS, CSS)
     return env.ASSETS.fetch(request);
   },
 };

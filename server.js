@@ -35,6 +35,17 @@ const R2_BUCKET = "tienda-fotos";
 app.use(cors());
 app.use(express.json());
 
+// Endpoint de estado de salud (para que el Admin y Cloudflare sepan si la PC está encendida)
+app.get("/api/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    online: true,
+    server: "local_pc",
+    timestamp: Date.now(),
+  });
+});
+
+
 // Configuración de Multer para guardar imágenes en disco local (/uploads)
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
