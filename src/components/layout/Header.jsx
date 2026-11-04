@@ -126,23 +126,23 @@ export default function Header({ onProductClick, onFilter }) {
       )}
 
       {/* CABECERA NORMAL */}
-      <div className="max-w-md mx-auto px-4 h-full flex items-center justify-between gap-3">
+      <div className="max-w-md mx-auto px-2 sm:px-4 h-full flex items-center justify-between gap-1 sm:gap-2">
         
         {/* Logo (Ahora resetea los filtros al tocarlo) */}
         <div 
-          className="flex-shrink-0 cursor-pointer" 
+          className="min-w-0 flex-1 cursor-pointer pr-1" 
           onClick={() => { 
             if(onFilter) onFilter("all"); 
             window.scrollTo(0, 0); 
           }}
         >
-          <span className="text-xl font-black tracking-tighter uppercase" style={{ color: "var(--primary)" }}>
+          <span className="text-base sm:text-lg font-black tracking-tighter uppercase truncate block" style={{ color: "var(--primary)" }}>
             ✨ {settings?.appShortName || settings?.appName || "Luckathys"}
           </span>
         </div>
 
         {/* Botonera */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
           
           {/* Contador de Visitas Premium */}
           <VisitCounter />
@@ -150,9 +150,10 @@ export default function Header({ onProductClick, onFilter }) {
           {/* Botón Lupa */}
           <button 
             onClick={() => setSearchOpen(true)} 
-            className="p-2.5 rounded-full hover:bg-gray-50 transition-colors active:scale-90 text-gray-800"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-gray-50 transition-colors active:scale-90 text-gray-800"
+            aria-label="Buscar"
           >
-            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
@@ -163,9 +164,10 @@ export default function Header({ onProductClick, onFilter }) {
               if(onFilter) onFilter("wishlist"); 
               window.scrollTo(0, 0); 
             }} 
-            className="p-2.5 rounded-full hover:bg-pink-50 hover:text-pink-500 transition-colors active:scale-90 text-gray-800"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-pink-50 hover:text-pink-500 transition-colors active:scale-90 text-gray-800"
+            aria-label="Favoritos"
           >
-            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
           </button>
@@ -173,14 +175,15 @@ export default function Header({ onProductClick, onFilter }) {
           {/* Botón Carrito Intacto */}
           <button 
             onClick={() => setIsOpen(true)} 
-            className="relative p-2.5 rounded-full hover:bg-gray-50 transition-colors active:scale-90 text-gray-800"
+            className="relative p-1.5 sm:p-2 rounded-full hover:bg-gray-50 transition-colors active:scale-90 text-gray-800"
+            aria-label="Carrito de compras"
           >
-            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
             </svg>
             {itemCount > 0 && (
               <span 
-                className="absolute top-1 right-0.5 w-4 h-4 text-[10px] flex items-center justify-center rounded-full text-white font-black shadow-md border border-white" 
+                className="absolute top-0.5 right-0.5 w-4 h-4 text-[10px] flex items-center justify-center rounded-full text-white font-black shadow-md border border-white" 
                 style={{ background: "var(--primary)" }}
               >
                 {itemCount}
@@ -188,13 +191,14 @@ export default function Header({ onProductClick, onFilter }) {
             )}
           </button>
 
-          {/* Tu Menú Original de 3 puntos (INTACTO) */}
+          {/* Menú de 3 puntos (Administración y Navegación) */}
           <div className="relative" ref={menuRef}>
             <button 
               onClick={() => setMenuOpen(!menuOpen)} 
-              className="p-2.5 rounded-full hover:bg-gray-50 transition-colors active:scale-90 text-gray-800"
+              className="p-1.5 sm:p-2 rounded-full hover:bg-gray-50 transition-colors active:scale-90 text-gray-800"
+              aria-label="Menú y administración"
             >
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="5" r="1.5" />
                 <circle cx="12" cy="12" r="1.5" />
                 <circle cx="12" cy="19" r="1.5" />
@@ -203,11 +207,38 @@ export default function Header({ onProductClick, onFilter }) {
 
             {menuOpen && (
               <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 py-2">
+                {sessions.length > 0 && (
+                  <>
+                    <p className="px-4 py-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                      Sesiones
+                    </p>
+                    {sessions.map((s) => (
+                      <button
+                        key={s.id}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-pink-50 text-gray-700 font-medium transition-colors"
+                        onClick={() => {
+                          document.getElementById(`session-${s.id}`)?.scrollIntoView({ behavior: "smooth" });
+                          setMenuOpen(false);
+                        }}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                    <div className="border-t border-gray-100 my-1" />
+                  </>
+                )}
+                <button
+                  onClick={() => { navigate("/preguntas"); setMenuOpen(false); }}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-pink-50 text-gray-700 font-medium transition-colors flex items-center gap-2"
+                >
+                  <span>💬</span> Zona de Preguntas
+                </button>
+                <div className="border-t border-gray-100 my-1" />
                 <button
                   onClick={() => { navigate(user ? "/admin" : "/login"); setMenuOpen(false); }}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-700 font-medium"
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-pink-50 text-gray-800 font-bold transition-colors flex items-center gap-2"
                 >
-                  🔒 Panel Admin
+                  <span>🔒</span> Panel Admin
                 </button>
               </div>
             )}

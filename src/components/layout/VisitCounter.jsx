@@ -56,15 +56,15 @@ export default function VisitCounter() {
       {/* Botón Principal (Contador) */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 p-2 rounded-full hover:bg-pink-50 transition-colors active:scale-90 border border-transparent hover:border-pink-100 group"
+        className="flex items-center gap-1 p-1.5 sm:p-2 rounded-full hover:bg-pink-50 transition-colors active:scale-90 border border-transparent hover:border-pink-100 group"
       >
         <div className="relative flex items-center justify-center">
-          <svg className="w-[20px] h-[20px] text-gray-700 group-hover:text-pink-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-[18px] h-[18px] sm:w-[20px] sm:h-[20px] text-gray-700 group-hover:text-pink-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
           </svg>
         </div>
-        <span className="text-xs font-black text-gray-800 tracking-wider">
+        <span className="text-[11px] sm:text-xs font-black text-gray-800 tracking-wider">
           {total > 0 ? (total > 999 ? '999+' : total) : '-'}
         </span>
       </button>
