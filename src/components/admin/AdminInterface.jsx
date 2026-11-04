@@ -147,7 +147,7 @@ export default function AdminInterface() {
             <span>📱</span> Icono y Nombre de la Aplicación (APK)
           </h3>
           <p className="text-xs text-gray-500 mt-1">
-            Configura el nombre y el icono que verán tus clientes en la cabecera y al instalar la app en su teléfono.
+            Configura el nombre y el icono que verán tus clientes al instalar la aplicación (APK / PWA) en la pantalla de su teléfono.
           </p>
         </div>
 
@@ -190,7 +190,7 @@ export default function AdminInterface() {
             {/* Subida del Icono */}
             <div className="pt-1">
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                Icono de la App (Logo)
+                Icono de la Aplicación (APK / Launcher del Teléfono)
               </label>
               <div className="flex items-center gap-3 flex-wrap">
                 <label

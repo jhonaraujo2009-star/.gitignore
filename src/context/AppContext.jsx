@@ -70,12 +70,80 @@ export function AppProvider({ children }) {
     document.documentElement.style.setProperty("--primary", settings.primaryColor);
   }, [settings.primaryColor]);
 
-  // Actualizar el título de la página automáticamente si cambia el nombre de la app
+  // Actualizar el título, favicon, apple-touch-icon y manifest de la APK automáticamente
   useEffect(() => {
-    if (settings?.appName) {
+    if (!settings) return;
+
+    if (settings.appName) {
       document.title = settings.appName;
     }
-  }, [settings?.appName]);
+
+    if (settings.appIcon) {
+      // 1. Favicon de la pestaña del navegador
+      let linkIcon = document.querySelector("link[rel*='icon']");
+      if (!linkIcon) {
+        linkIcon = document.createElement("link");
+        linkIcon.rel = "icon";
+        document.head.appendChild(linkIcon);
+      }
+      linkIcon.href = settings.appIcon;
+
+      // 2. Icono de pantalla de inicio en iOS (Apple Touch Icon)
+      let appleIcon = document.querySelector("link[rel='apple-touch-icon']");
+      if (!appleIcon) {
+        appleIcon = document.createElement("link");
+        appleIcon.rel = "apple-touch-icon";
+        document.head.appendChild(appleIcon);
+      }
+      appleIcon.href = settings.appIcon;
+
+      // 3. Manifiesto dinámico para la instalación de la APK / PWA en Android
+      try {
+        const manifestData = {
+          id: "/",
+          start_url: "/",
+          scope: "/",
+          name: settings.appName || "Luckathys Shop",
+          short_name: settings.appShortName || settings.appName || "Luckathys",
+          description: "Tienda online",
+          theme_color: settings.primaryColor || "#ffffff",
+          background_color: "#ffffff",
+          display: "standalone",
+          orientation: "portrait",
+          categories: ["shopping", "lifestyle"],
+          lang: "es",
+          dir: "ltr",
+          icons: [
+            {
+              src: settings.appIcon,
+              sizes: "192x192",
+              type: "image/png",
+              purpose: "any maskable",
+            },
+            {
+              src: settings.appIcon,
+              sizes: "512x512",
+              type: "image/png",
+              purpose: "any maskable",
+            },
+          ],
+        };
+        const blob = new Blob([JSON.stringify(manifestData)], { type: "application/manifest+json" });
+        const manifestUrl = URL.createObjectURL(blob);
+        let manifestTag = document.querySelector("link[rel='manifest']");
+        if (manifestTag) {
+          manifestTag.setAttribute("href", manifestUrl);
+        } else {
+          manifestTag = document.createElement("link");
+          manifestTag.rel = "manifest";
+          manifestTag.href = manifestUrl;
+          document.head.appendChild(manifestTag);
+        }
+      } catch (err) {
+        console.warn("No se pudo generar el manifiesto dinámico", err);
+      }
+    }
+  }, [settings?.appName, settings?.appShortName, settings?.appIcon, settings?.primaryColor]);
 
   const updateSettings = async (updates) => {
     await setDoc(doc(db, "config", "settings"), updates, { merge: true });

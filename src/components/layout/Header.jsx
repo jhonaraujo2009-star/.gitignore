@@ -130,19 +130,12 @@ export default function Header({ onProductClick, onFilter }) {
         
         {/* Logo (Ahora resetea los filtros al tocarlo) */}
         <div 
-          className="flex-shrink-0 cursor-pointer flex items-center gap-2" 
+          className="flex-shrink-0 cursor-pointer" 
           onClick={() => { 
             if(onFilter) onFilter("all"); 
             window.scrollTo(0, 0); 
           }}
         >
-          {settings?.appIcon ? (
-            <img
-              src={settings.appIcon}
-              alt="Logo"
-              className="w-8 h-8 rounded-full object-cover shadow-sm border border-pink-200 bg-white"
-            />
-          ) : null}
           <span className="text-xl font-black tracking-tighter uppercase" style={{ color: "var(--primary)" }}>
             ✨ {settings?.appShortName || settings?.appName || "Luckathys"}
           </span>
