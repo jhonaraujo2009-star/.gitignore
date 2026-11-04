@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { checkServerHealth } from "../utils/cloudinaryUpload";
 
 const AppContext = createContext(null);
 
@@ -32,6 +33,22 @@ const DEFAULT_SETTINGS = {
 export function AppProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
+  const [serverOnline, setServerOnline] = useState(true);
+  const [checkingServer, setCheckingServer] = useState(false);
+
+  const verifyServer = async () => {
+    setCheckingServer(true);
+    const isOnline = await checkServerHealth();
+    setServerOnline(isOnline);
+    setCheckingServer(false);
+    return isOnline;
+  };
+
+  useEffect(() => {
+    verifyServer();
+    const interval = setInterval(verifyServer, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "config", "settings"), (snap) => {
@@ -57,7 +74,17 @@ export function AppProvider({ children }) {
   };
 
   return (
-    <AppContext.Provider value={{ settings, loading, updateSettings, bsPrice }}>
+    <AppContext.Provider
+      value={{
+        settings,
+        loading,
+        updateSettings,
+        bsPrice,
+        serverOnline,
+        checkingServer,
+        verifyServer,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );

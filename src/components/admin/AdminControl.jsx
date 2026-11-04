@@ -4,6 +4,7 @@ import {
   orderBy, query, serverTimestamp
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
+import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
@@ -12,6 +13,7 @@ import { compressAndUpload } from "../../utils/cloudinaryUpload";
 // ==========================================
 
 export default function AdminControl() {
+  const { serverOnline } = useApp();
   const [products, setProducts] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +75,10 @@ export default function AdminControl() {
 
   // Image upload to Cloudinary (con compresión)
   const handleImageUpload = async (e) => {
+    if (!serverOnline) {
+      toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
+      return;
+    }
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
@@ -80,8 +86,8 @@ export default function AdminControl() {
       const url = await compressAndUpload(file);
       setForm((prev) => ({ ...prev, image: url }));
       toast.success("Imagen subida ✅");
-    } catch {
-      toast.error("Error al subir imagen");
+    } catch (err) {
+      toast.error(err.message || "Error al subir imagen");
     } finally {
       setUploading(false);
     }
@@ -390,17 +396,33 @@ export default function AdminControl() {
                 </button>
               </div>
             ) : (
-              <label className="flex items-center gap-3 cursor-pointer bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl px-4 py-3 hover:border-purple-300 hover:bg-purple-50/30 transition-all group">
+              <label className={`flex items-center gap-3 rounded-2xl px-4 py-3 border-2 border-dashed transition-all group ${
+                serverOnline
+                  ? "cursor-pointer bg-gray-50 border-gray-200 hover:border-purple-300 hover:bg-purple-50/30"
+                  : "cursor-not-allowed bg-amber-50/60 border-amber-300/80 opacity-70"
+              }`}>
                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform">
-                  {uploading ? "⏳" : "📷"}
+                  {!serverOnline ? "🔒" : uploading ? "⏳" : "📷"}
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-500 group-hover:text-purple-600 transition-colors">
-                    {uploading ? "Subiendo imagen..." : "Subir imagen del producto"}
+                  <p className={`text-xs font-bold ${!serverOnline ? "text-amber-800" : "text-gray-500 group-hover:text-purple-600"} transition-colors`}>
+                    {!serverOnline
+                      ? "⚠️ Subida bloqueada (PC Servidor Apagada)"
+                      : uploading
+                      ? "Subiendo imagen..."
+                      : "Subir imagen del producto"}
                   </p>
-                  <p className="text-[10px] text-gray-400">JPG, PNG — Max 5MB</p>
+                  <p className="text-[10px] text-gray-400">
+                    {!serverOnline ? "Modo Solo Lectura" : "JPG, PNG — Max 5MB"}
+                  </p>
                 </div>
-                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploading} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={uploading || !serverOnline}
+                />
               </label>
             )}
           </div>

@@ -3,6 +3,7 @@ import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, getDocs
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
+import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
@@ -56,6 +57,7 @@ function VariantManager({ variants, onChange }) {
 // 2. PRODUCT FORM
 // ==========================================
 function ProductForm({ sessions, product, onClose }) {
+  const { serverOnline } = useApp();
   const [form, setForm] = useState({
     name: product?.name || "",
     description: product?.description || "",
@@ -73,6 +75,10 @@ function ProductForm({ sessions, product, onClose }) {
   const [saving, setSaving] = useState(false);
 
   const handleImages = async (e) => {
+    if (!serverOnline) {
+      toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
+      return;
+    }
     const files = Array.from(e.target.files);
     if (!files.length) return;
     setUploading(true);
@@ -85,7 +91,7 @@ function ProductForm({ sessions, product, onClose }) {
       toast.success("Imágenes listas");
     } catch (error) {
       console.error(error);
-      toast.error("Error al subir las imágenes");
+      toast.error(error.message || "Error al subir las imágenes");
     } finally {
       setUploading(false);
     }
@@ -221,9 +227,29 @@ function ProductForm({ sessions, product, onClose }) {
                     className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
                 </div>
               ))}
-              <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-pink-300 transition-colors">
-                {uploading ? <span className="text-xs text-gray-400 animate-pulse">Subiendo...</span> : <span className="text-gray-400 text-2xl">+</span>}
-                <input type="file" accept="image/*" multiple onChange={handleImages} className="hidden" disabled={uploading} />
+              <label className={`aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-colors p-2 text-center ${
+                serverOnline
+                  ? "border-gray-300 cursor-pointer hover:border-pink-300"
+                  : "border-amber-300 bg-amber-50/60 cursor-not-allowed opacity-75"
+              }`}>
+                {!serverOnline ? (
+                  <>
+                    <span className="text-base">🔒</span>
+                    <span className="text-[9px] font-black text-amber-800 leading-tight mt-1">PC Apagada</span>
+                  </>
+                ) : uploading ? (
+                  <span className="text-xs text-gray-400 animate-pulse">Subiendo...</span>
+                ) : (
+                  <span className="text-gray-400 text-2xl">+</span>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImages}
+                  className="hidden"
+                  disabled={uploading || !serverOnline}
+                />
               </label>
             </div>
           </div>

@@ -35,6 +35,12 @@ export const checkServerHealth = async () => {
  * Retorna la URL pública de la imagen subida (/uploads/...).
  */
 export const compressAndUpload = async (file) => {
+  // Pre-verificación: validar que el servidor local de la PC esté activo
+  const isOnline = await checkServerHealth();
+  if (!isOnline) {
+    throw new Error("⚠️ Servidor local apagado: La tienda está en modo Solo Lectura. Enciende tu PC servidor para subir fotos.");
+  }
+
   // 1. Comprimir la imagen
   const compressedBlob = await imageCompression(file, compressionOptions);
 

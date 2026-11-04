@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 export default function AdminSettings() {
-  const { settings, loading, updateSettings } = useApp();
+  const { settings, loading, updateSettings, serverOnline } = useApp();
   
   const [form, setForm] = useState({
     exchangeRate: settings.exchangeRate || "",
@@ -60,6 +60,10 @@ export default function AdminSettings() {
   };
 
   const handleUpload = async (e, type, category) => {
+    if (!serverOnline) {
+      toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
+      return;
+    }
     const file = e.target.files[0];
     if (!file) return;
     setUploading(type);
@@ -67,8 +71,8 @@ export default function AdminSettings() {
       const url = await compressAndUpload(file);
       setForm(prev => ({ ...prev, [category]: { ...prev[category], [type]: url } }));
       toast.success("Logo subido con éxito");
-    } catch {
-      toast.error("Error al subir");
+    } catch (err) {
+      toast.error(err.message || "Error al subir");
     } finally {
       setUploading(null);
     }
@@ -153,12 +157,32 @@ export default function AdminSettings() {
           <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Redes Sociales</h3>
           <div className="grid grid-cols-3 gap-3">
             {['whatsapp', 'instagram', 'tiktok'].map((social) => (
-              <label key={social} className="group flex flex-col items-center gap-3 cursor-pointer bg-gray-50/50 p-3 rounded-3xl border border-gray-100 hover:bg-pink-50/30 transition-all">
+              <label
+                key={social}
+                className={`group flex flex-col items-center gap-3 p-3 rounded-3xl border transition-all ${
+                  serverOnline
+                    ? "cursor-pointer bg-gray-50/50 border-gray-100 hover:bg-pink-50/30"
+                    : "cursor-not-allowed bg-amber-50/50 border-amber-200 opacity-70"
+                }`}
+              >
                 <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center overflow-hidden shadow-sm group-hover:scale-110 transition-transform">
-                  {form.customIcons[social] ? <img src={form.customIcons[social]} className="w-full h-full object-contain" /> : <span className="text-xl">📸</span>}
+                  {!serverOnline ? (
+                    <span className="text-xl">🔒</span>
+                  ) : form.customIcons[social] ? (
+                    <img src={form.customIcons[social]} className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-xl">📸</span>
+                  )}
                 </div>
-                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{uploading === social ? "..." : social}</span>
-                <input type="file" className="hidden" onChange={(e) => handleUpload(e, social, 'customIcons')} />
+                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                  {!serverOnline ? "Bloqueado" : uploading === social ? "..." : social}
+                </span>
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => handleUpload(e, social, 'customIcons')}
+                  disabled={uploading === social || !serverOnline}
+                />
               </label>
             ))}
           </div>

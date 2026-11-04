@@ -3,12 +3,14 @@ import {
   collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs, query, where
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
+import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 const LOGISTICS_IDS = ["mrw", "zoom", "tealca"];
 
 export default function AdminLogistics() {
+  const { serverOnline } = useApp();
   const [logistics, setLogistics] = useState({});
   const [coupons, setCoupons] = useState([]);
   const [newCoupon, setNewCoupon] = useState({ code: "", type: "percent", value: "" });
@@ -28,6 +30,10 @@ export default function AdminLogistics() {
   }, []);
 
   const uploadLogo = async (id, file) => {
+    if (!serverOnline) {
+      toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
+      return;
+    }
     setUploading({ ...uploading, [id]: true });
     try {
       const url = await compressAndUpload(file);
@@ -37,8 +43,8 @@ export default function AdminLogistics() {
         url: logistics[id]?.url || "",
       }, { merge: true });
       toast.success(`Logo de ${id.toUpperCase()} actualizado ✅`);
-    } catch {
-      toast.error("Error al subir logo");
+    } catch (err) {
+      toast.error(err.message || "Error al subir logo");
     } finally {
       setUploading({ ...uploading, [id]: false });
     }
@@ -127,9 +133,19 @@ export default function AdminLogistics() {
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs outline-none"
                 />
               </div>
-              <label className="cursor-pointer px-4 py-2 rounded-2xl border border-dashed border-gray-300 text-xs text-gray-500 hover:border-pink-300 flex-shrink-0">
-                {uploading[id] ? "..." : "Logo"}
-                <input type="file" accept="image/*" onChange={(e) => e.target.files[0] && uploadLogo(id, e.target.files[0])} className="hidden" />
+              <label className={`px-4 py-2 rounded-2xl border border-dashed text-xs flex-shrink-0 transition-colors ${
+                serverOnline
+                  ? "cursor-pointer border-gray-300 text-gray-500 hover:border-pink-300"
+                  : "cursor-not-allowed border-amber-300 bg-amber-50/50 text-amber-800 opacity-70"
+              }`}>
+                {!serverOnline ? "🔒" : uploading[id] ? "..." : "Logo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => e.target.files[0] && uploadLogo(id, e.target.files[0])}
+                  className="hidden"
+                  disabled={uploading[id] || !serverOnline}
+                />
               </label>
             </div>
           ))}

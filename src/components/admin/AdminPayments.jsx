@@ -3,6 +3,7 @@ import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
+import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
@@ -18,6 +19,7 @@ const SEED = {
 };
 
 function PaymentForm({ payment, onClose }) {
+  const { serverOnline } = useApp();
   const [form, setForm] = useState({
     bankName: payment?.bankName || "",
     holderName: payment?.holderName || "",
@@ -31,6 +33,10 @@ function PaymentForm({ payment, onClose }) {
   const [saving, setSaving] = useState(false);
 
   const handleLogoUpload = async (e) => {
+    if (!serverOnline) {
+      toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
+      return;
+    }
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
@@ -38,8 +44,8 @@ function PaymentForm({ payment, onClose }) {
       const url = await compressAndUpload(file);
       setForm({ ...form, logo: url });
       toast.success("Logo subido ✅");
-    } catch {
-      toast.error("Error al subir logo");
+    } catch (err) {
+      toast.error(err.message || "Error al subir logo");
     } finally {
       setUploading(false);
     }
@@ -95,9 +101,13 @@ function PaymentForm({ payment, onClose }) {
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Logo</label>
             <div className="flex items-center gap-3">
               {form.logo && <img src={form.logo} alt="" className="w-12 h-12 object-contain rounded-xl border border-gray-100" />}
-              <label className="cursor-pointer px-4 py-2 rounded-xl border border-dashed border-gray-300 text-sm text-gray-500 hover:border-pink-300">
-                {uploading ? "Subiendo..." : "Subir logo"}
-                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" disabled={uploading} />
+              <label className={`px-4 py-2 rounded-xl border border-dashed text-sm transition-colors ${
+                serverOnline
+                  ? "cursor-pointer border-gray-300 text-gray-500 hover:border-pink-300"
+                  : "cursor-not-allowed border-amber-300 bg-amber-50/50 text-amber-800 opacity-70"
+              }`}>
+                {!serverOnline ? "🔒 PC Apagada" : uploading ? "Subiendo..." : "Subir logo"}
+                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" disabled={uploading || !serverOnline} />
               </label>
             </div>
           </div>

@@ -3,8 +3,8 @@ import { Routes, Route, NavLink, useNavigate, useLocation } from "react-router-d
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
+import { useApp } from "../context/AppContext";
 import { notifyNewOrder, unlockAudio, shouldNotifyOrder, markOrdersAsKnown } from "../utils/orderNotifications";
-import { checkServerHealth } from "../utils/cloudinaryUpload";
 import toast from "react-hot-toast";
 
 // Admin sub-panels
@@ -30,25 +30,11 @@ const NAV_ITEMS = [
 
 export default function AdminPage() {
   const { logout } = useAuth();
+  const { serverOnline, checkingServer, verifyServer } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
-  const [serverOnline, setServerOnline] = useState(true);
-  const [checkingServer, setCheckingServer] = useState(false);
-
-  const verifyServer = async () => {
-    setCheckingServer(true);
-    const isOnline = await checkServerHealth();
-    setServerOnline(isOnline);
-    setCheckingServer(false);
-  };
-
-  useEffect(() => {
-    verifyServer();
-    const interval = setInterval(verifyServer, 30000); // Chequear cada 30 segundos
-    return () => clearInterval(interval);
-  }, []);
 
   const isInitialLoad = useRef(true);
   const isWidePage = location.pathname.includes("/admin/control") || location.pathname.includes("/admin/facturar");

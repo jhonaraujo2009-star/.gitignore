@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 export default function AdminInterface() {
-  const { settings, loading, updateSettings } = useApp();
+  const { settings, loading, updateSettings, serverOnline } = useApp();
   const [form, setForm] = useState({
     announcementText: settings.announcementText || "",
     heroTitle: settings.heroTitle || "",
@@ -31,6 +31,10 @@ export default function AdminInterface() {
   // Subida a Cloudinary con compresión (función centralizada)
 
   const handleProfileImage = async (e) => {
+    if (!serverOnline) {
+      toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
+      return;
+    }
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
@@ -40,13 +44,17 @@ export default function AdminInterface() {
       toast.success("Foto de perfil actualizada ✅");
     } catch (error) {
       console.error(error);
-      toast.error("Error al subir foto de perfil");
+      toast.error(error.message || "Error al subir foto de perfil");
     } finally {
       setUploading(false);
     }
   };
 
   const handleHappyCustomerUpload = async (e) => {
+    if (!serverOnline) {
+      toast.error("⚠️ Servidor local apagado: Enciende tu PC servidor para subir fotos.");
+      return;
+    }
     const files = Array.from(e.target.files);
     if (!files.length) return;
     setUploading(true);
@@ -59,7 +67,7 @@ export default function AdminInterface() {
       toast.success(`${urls.length} imagen(es) subida(s) ✅`);
     } catch (error) {
       console.error(error);
-      toast.error("Error al subir imágenes del carrusel");
+      toast.error(error.message || "Error al subir imágenes del carrusel");
     } finally {
       setUploading(false);
     }
@@ -98,9 +106,13 @@ export default function AdminInterface() {
               <div className="w-full h-full flex items-center justify-center text-3xl">✨</div>
             )}
           </div>
-          <label className="cursor-pointer px-4 py-2 rounded-2xl border-2 border-dashed border-gray-300 text-sm text-gray-500 hover:border-pink-300 transition-colors">
-            {uploading ? "Subiendo..." : "Cambiar foto"}
-            <input type="file" accept="image/*" onChange={handleProfileImage} className="hidden" disabled={uploading} />
+          <label className={`px-4 py-2 rounded-2xl border-2 border-dashed text-sm transition-colors ${
+            serverOnline
+              ? "cursor-pointer border-gray-300 text-gray-500 hover:border-pink-300"
+              : "cursor-not-allowed border-amber-300 bg-amber-50/50 text-amber-800 opacity-70"
+          }`}>
+            {!serverOnline ? "🔒 PC Apagada" : uploading ? "Subiendo..." : "Cambiar foto"}
+            <input type="file" accept="image/*" onChange={handleProfileImage} className="hidden" disabled={uploading || !serverOnline} />
           </label>
         </div>
       </div>
@@ -163,9 +175,19 @@ export default function AdminInterface() {
               >×</button>
             </div>
           ))}
-          <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-pink-300 transition-colors">
-            {uploading ? <span className="text-xs text-gray-400 animate-pulse">...</span> : <span className="text-gray-400 text-2xl">+</span>}
-            <input type="file" accept="image/*" multiple onChange={handleHappyCustomerUpload} className="hidden" disabled={uploading} />
+          <label className={`aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-colors ${
+            serverOnline
+              ? "border-gray-300 cursor-pointer hover:border-pink-300"
+              : "border-amber-300 bg-amber-50/50 cursor-not-allowed opacity-70"
+          }`}>
+            {!serverOnline ? (
+              <span className="text-xs text-amber-800 font-bold">🔒</span>
+            ) : uploading ? (
+              <span className="text-xs text-gray-400 animate-pulse">...</span>
+            ) : (
+              <span className="text-gray-400 text-2xl">+</span>
+            )}
+            <input type="file" accept="image/*" multiple onChange={handleHappyCustomerUpload} className="hidden" disabled={uploading || !serverOnline} />
           </label>
         </div>
       </div>

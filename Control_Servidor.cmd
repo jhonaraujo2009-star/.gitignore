@@ -38,6 +38,7 @@ if "%op%"=="2" (
     echo Encendiendo servicios...
     cd /d C:\Tienda_lismar
     call pm2 start all
+    call pm2 resurrect 2>nul
     call pm2 save
     pause
     goto menu
