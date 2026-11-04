@@ -144,7 +144,7 @@ export default function Header({ onProductClick, onFilter }) {
             />
           ) : null}
           <span className="text-xl font-black tracking-tighter uppercase" style={{ color: "var(--primary)" }}>
-            ✨ Luckathys
+            ✨ {settings?.appShortName || settings?.appName || "Luckathys"}
           </span>
         </div>
 

@@ -11,6 +11,8 @@ const DEFAULT_SETTINGS = {
   freeShippingGoal: 50,
   primaryColor: "#ec4899",
   announcementText: "🚚 Envíos gratis por MRW a partir de $50",
+  appName: "Luckathys Shop",
+  appShortName: "Luckathys",
   profileImage: "",
   appIcon: "",
   splashImage: "",
@@ -67,6 +69,13 @@ export function AppProvider({ children }) {
   useEffect(() => {
     document.documentElement.style.setProperty("--primary", settings.primaryColor);
   }, [settings.primaryColor]);
+
+  // Actualizar el título de la página automáticamente si cambia el nombre de la app
+  useEffect(() => {
+    if (settings?.appName) {
+      document.title = settings.appName;
+    }
+  }, [settings?.appName]);
 
   const updateSettings = async (updates) => {
     await setDoc(doc(db, "config", "settings"), updates, { merge: true });

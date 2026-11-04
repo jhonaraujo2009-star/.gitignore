@@ -7,6 +7,8 @@ import SplashScreen from "../layout/SplashScreen";
 export default function AdminInterface() {
   const { settings, loading, updateSettings, serverOnline } = useApp();
   const [form, setForm] = useState({
+    appName: settings.appName || "Luckathys Shop",
+    appShortName: settings.appShortName || "Luckathys",
     announcementText: settings.announcementText || "",
     heroTitle: settings.heroTitle || "",
     heroDescription: settings.heroDescription || "",
@@ -24,6 +26,8 @@ export default function AdminInterface() {
   useEffect(() => {
     if (!loading && settings) {
       setForm({
+        appName: settings.appName || "Luckathys Shop",
+        appShortName: settings.appShortName || "Luckathys",
         announcementText: settings.announcementText || "",
         heroTitle: settings.heroTitle || "",
         heroDescription: settings.heroDescription || "",
@@ -133,55 +137,129 @@ export default function AdminInterface() {
         <h2 className="text-2xl font-bold text-gray-900">🎨 Gestor de Interfaz</h2>
       </div>
 
-      {/* 🌟 1. ICONO SIMPLE DE LA APLICACIÓN 🌟 */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-              <span>📱</span> Icono Simple de la Aplicación
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Es el logo o icono que se muestra en la cabecera de la tienda y como acceso directo en el celular.
-            </p>
-          </div>
+      {/* 🌟 1. ICONO Y NOMBRE DE LA APLICACIÓN (APK / PWA) 🌟 */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-5">
+        <div>
+          <h3 className="font-extrabold text-gray-900 text-lg flex items-center gap-2">
+            <span>📱</span> Icono y Nombre de la Aplicación (APK)
+          </h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Configura el nombre y el icono que verán tus clientes en la cabecera y al instalar la app en su teléfono.
+          </p>
         </div>
 
-        <div className="flex items-center gap-4 mt-4">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50 border-2 border-gray-100 flex items-center justify-center shadow-inner flex-shrink-0">
-            {settings?.appIcon ? (
-              <img src={settings.appIcon} alt="App Icon" className="w-full h-full object-contain p-1" />
-            ) : (
-              <span className="text-2xl">🛍️</span>
-            )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center pt-2">
+          {/* Lado izquierdo: Inputs de Nombre e Icono */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                Nombre de la Aplicación (APK)
+              </label>
+              <input
+                type="text"
+                value={form.appName}
+                onChange={(e) => setForm({ ...form, appName: e.target.value })}
+                placeholder="Ej. Luckathys Shop"
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold outline-none focus:border-pink-300 focus:bg-white transition-all shadow-inner"
+              />
+              <span className="text-[10px] text-gray-400 mt-1 block">
+                Es el título principal que se ve en la tienda, pestañas y al instalar la app.
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                Nombre Corto (Debajo del Icono en el Celular)
+              </label>
+              <input
+                type="text"
+                value={form.appShortName}
+                maxLength={14}
+                onChange={(e) => setForm({ ...form, appShortName: e.target.value })}
+                placeholder="Ej. Luckathys"
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold outline-none focus:border-pink-300 focus:bg-white transition-all shadow-inner"
+              />
+              <span className="text-[10px] text-gray-400 mt-1 block">
+                Máximo 12-14 letras para que no se corte en la pantalla de inicio del teléfono.
+              </span>
+            </div>
+
+            {/* Subida del Icono */}
+            <div className="pt-1">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                Icono de la App (Logo)
+              </label>
+              <div className="flex items-center gap-3 flex-wrap">
+                <label
+                  className={`px-4 py-2.5 rounded-2xl border-2 border-dashed text-xs font-bold transition-all flex items-center gap-2 ${
+                    serverOnline
+                      ? "cursor-pointer border-pink-300 text-pink-600 hover:bg-pink-50/50"
+                      : "cursor-not-allowed border-amber-300 bg-amber-50/50 text-amber-800 opacity-70"
+                  }`}
+                >
+                  <span>{!serverOnline ? "🔒" : uploadingIcon ? "⏳" : "🖼️"}</span>
+                  <span>
+                    {!serverOnline
+                      ? "PC Apagada (Solo Lectura)"
+                      : uploadingIcon
+                      ? "Subiendo icono..."
+                      : settings?.appIcon
+                      ? "Cambiar icono"
+                      : "Subir icono de la app"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAppIcon}
+                    className="hidden"
+                    disabled={uploadingIcon || !serverOnline}
+                  />
+                </label>
+
+                {settings?.appIcon && (
+                  <button
+                    type="button"
+                    onClick={removeAppIcon}
+                    className="px-3 py-2.5 rounded-2xl text-xs font-bold text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <label
-              className={`px-4 py-2.5 rounded-2xl border-2 border-dashed text-xs font-bold transition-all ${
-                serverOnline
-                  ? "cursor-pointer border-pink-300 text-pink-600 hover:bg-pink-50/50"
-                  : "cursor-not-allowed border-amber-300 bg-amber-50/50 text-amber-800 opacity-70"
-              }`}
-            >
-              {!serverOnline ? "🔒 PC Apagada" : uploadingIcon ? "Subiendo icono..." : "Subir nuevo icono"}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleAppIcon}
-                className="hidden"
-                disabled={uploadingIcon || !serverOnline}
-              />
-            </label>
+          {/* Lado derecho: Maqueta en vivo de cómo se verá el icono y nombre en la pantalla de un teléfono */}
+          <div className="flex flex-col items-center justify-center p-6 rounded-3xl bg-gradient-to-br from-gray-950 to-gray-800 text-white shadow-xl border border-gray-700/80">
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">
+              Vista Previa en Pantalla de Celular
+            </span>
 
-            {settings?.appIcon && (
-              <button
-                type="button"
-                onClick={removeAppIcon}
-                className="px-3 py-2 rounded-2xl text-xs font-bold text-red-500 hover:bg-red-50 transition-colors"
-              >
-                Eliminar
-              </button>
-            )}
+            {/* Icono simulado en la pantalla de inicio */}
+            <div className="flex flex-col items-center group cursor-pointer">
+              <div className="w-20 h-20 rounded-[1.6rem] overflow-hidden bg-white shadow-2xl p-2 border-2 border-white/20 transition-transform group-hover:scale-105 flex items-center justify-center relative">
+                {settings?.appIcon ? (
+                  <img
+                    src={settings.appIcon}
+                    alt="App Icon"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <span className="text-3xl">🛍️</span>
+                )}
+                {/* Reflejo brillante tipo cristal */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/30 pointer-events-none rounded-[1.6rem]" />
+              </div>
+
+              {/* Nombre debajo del icono */}
+              <span className="text-xs font-black text-white mt-2.5 tracking-tight text-center max-w-[120px] truncate drop-shadow-md">
+                {form.appShortName || form.appName || "Luckathys"}
+              </span>
+            </div>
+
+            <p className="text-[10px] text-gray-400 text-center mt-4">
+              Así aparecerá en la pantalla principal del teléfono del cliente al instalar tu app.
+            </p>
           </div>
         </div>
       </div>
