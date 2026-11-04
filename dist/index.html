@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <script>
       if (window.location.hostname.includes("vercel.app")) {
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (var r of regs) r.unregister();
+          });
+        }
+        if ("caches" in window) {
+          caches.keys().then(function(names) {
+            for (var name of names) caches.delete(name);
+          });
+        }
         window.location.replace("https://lkth91ofertas.com" + window.location.pathname + window.location.search);
       }
     </script>
@@ -24,7 +34,7 @@
         });
       });
     </script>
-    <script type="module" crossorigin src="/assets/index-C8zAMVFj.js"></script>
+    <script type="module" crossorigin src="/assets/index-DOKeikMZ.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-QnwUXhvA.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
