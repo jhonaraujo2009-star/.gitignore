@@ -13,12 +13,12 @@ export default function SplashScreen({ forceShow = false, onClose }) {
     }
   });
 
-  const [secondsLeft, setSecondsLeft] = useState(5);
+  const [secondsLeft, setSecondsLeft] = useState(2);
 
   useEffect(() => {
     if (forceShow) {
       setVisible(true);
-      setSecondsLeft(5);
+      setSecondsLeft(2);
     }
   }, [forceShow]);
 

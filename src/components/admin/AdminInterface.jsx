@@ -316,7 +316,7 @@ export default function AdminInterface() {
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                   <div className="absolute top-7 right-3 z-10 bg-black/60 text-white text-[8px] font-bold px-2 py-0.5 rounded-full">
-                    Saltar (5s) ✕
+                    Saltar (2s) ✕
                   </div>
                   <div className="absolute bottom-5 left-3 right-3 z-10 bg-white/90 text-gray-900 text-[9px] font-black uppercase py-2 text-center rounded-xl shadow-lg">
                     Entrar a la tienda 🛍️
