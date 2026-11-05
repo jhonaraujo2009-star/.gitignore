@@ -207,38 +207,11 @@ export default function Header({ onProductClick, onFilter }) {
 
             {menuOpen && (
               <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 py-2">
-                {sessions.length > 0 && (
-                  <>
-                    <p className="px-4 py-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                      Sesiones
-                    </p>
-                    {sessions.map((s) => (
-                      <button
-                        key={s.id}
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-pink-50 text-gray-700 font-medium transition-colors"
-                        onClick={() => {
-                          document.getElementById(`session-${s.id}`)?.scrollIntoView({ behavior: "smooth" });
-                          setMenuOpen(false);
-                        }}
-                      >
-                        {s.name}
-                      </button>
-                    ))}
-                    <div className="border-t border-gray-100 my-1" />
-                  </>
-                )}
-                <button
-                  onClick={() => { navigate("/preguntas"); setMenuOpen(false); }}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-pink-50 text-gray-700 font-medium transition-colors flex items-center gap-2"
-                >
-                  <span>💬</span> Zona de Preguntas
-                </button>
-                <div className="border-t border-gray-100 my-1" />
                 <button
                   onClick={() => { navigate(user ? "/admin" : "/login"); setMenuOpen(false); }}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-pink-50 text-gray-800 font-bold transition-colors flex items-center gap-2"
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-700 font-medium"
                 >
-                  <span>🔒</span> Panel Admin
+                  🔒 Panel Admin
                 </button>
               </div>
             )}
