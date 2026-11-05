@@ -17,8 +17,9 @@ export default function CartDrawer() {
   const [step, setStep] = useState(1); // 1: Bolsa, 2: Checkout
   const [customer, setCustomer] = useState({ name: "", phone: "" });
 
-  const freeShippingProgress = Math.min(100, (total / settings.freeShippingGoal) * 100);
-  const remaining = Math.max(0, settings.freeShippingGoal - total);
+  const shippingGoal = Number(settings.freeShippingGoal) || 0;
+  const freeShippingProgress = shippingGoal > 0 ? Math.min(100, (total / shippingGoal) * 100) : 100;
+  const remaining = shippingGoal > 0 ? Math.max(0, shippingGoal - total) : 0;
 
   // Cargar métodos al abrir y pre-seleccionar el primero
   useEffect(() => {
@@ -228,12 +229,16 @@ export default function CartDrawer() {
         {items.length > 0 && (
           <div className="px-8 py-8 bg-white border-t border-gray-50 space-y-5 shadow-[0_-10px_40px_rgba(0,0,0,0.03)]">
             
-            {/* BARRA DE ENVÍO GRATIS (Solo en Paso 1) */}
-            {step === 1 && (
+            {/* BARRA DE ENVÍO GRATIS (Solo en Paso 1 y si la meta es mayor a 0) */}
+            {step === 1 && shippingGoal > 0 && (
               <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] font-black text-gray-500 uppercase">Envío Gratis</span>
-                  <span className="text-[10px] font-black text-pink-500">{remaining > 0 ? `Faltan $${remaining.toFixed(2)}` : "¡CONSEGUIDO! 🚀"}</span>
+                  <span className="text-[10px] font-black text-gray-500 uppercase">
+                    Envío Gratis (Desde ${shippingGoal})
+                  </span>
+                  <span className="text-[10px] font-black text-pink-500">
+                    {remaining > 0 ? `Faltan $${remaining.toFixed(2)}` : "¡CONSEGUIDO! 🚀"}
+                  </span>
                 </div>
                 <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
                   <div className="h-full bg-pink-500 transition-all duration-1000" style={{ width: `${freeShippingProgress}%` }} />

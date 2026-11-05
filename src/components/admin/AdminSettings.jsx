@@ -10,6 +10,8 @@ export default function AdminSettings() {
   
   const [form, setForm] = useState({
     exchangeRate: settings.exchangeRate || "",
+    freeShippingGoal: settings.freeShippingGoal ?? 50,
+    announcementText: settings.announcementText || "🚚 Envíos gratis por MRW a partir de $50",
     whatsappNumber: settings.whatsappNumber || "",
     primaryColor: settings.primaryColor || "#ec4899",
     quickButtons: settings.quickButtons || [
@@ -32,6 +34,8 @@ export default function AdminSettings() {
     if (!loading && settings) {
       setForm({
         exchangeRate: settings.exchangeRate || "",
+        freeShippingGoal: settings.freeShippingGoal ?? 50,
+        announcementText: settings.announcementText || `🚚 Envíos gratis por MRW a partir de $${settings.freeShippingGoal ?? 50}`,
         whatsappNumber: settings.whatsappNumber || "",
         primaryColor: settings.primaryColor || "#ec4899",
         quickButtons: settings.quickButtons || [
@@ -50,6 +54,21 @@ export default function AdminSettings() {
       });
     }
   }, [loading, settings]);
+
+  const handleShippingGoalChange = (newGoalValue) => {
+    const numericGoal = Math.max(0, Number(newGoalValue) || 0);
+    setForm((prev) => {
+      const currentText = prev.announcementText || "🚚 Envíos gratis por MRW a partir de $50";
+      const updatedText = /\$\d+(\.\d+)?/.test(currentText)
+        ? currentText.replace(/\$\d+(\.\d+)?/, `$${numericGoal}`)
+        : `🚚 Envíos gratis por MRW a partir de $${numericGoal}`;
+      return {
+        ...prev,
+        freeShippingGoal: numericGoal,
+        announcementText: updatedText,
+      };
+    });
+  };
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(null);
@@ -88,7 +107,11 @@ export default function AdminSettings() {
     }
     setSaving(true);
     try {
-      await updateSettings({ ...form, exchangeRate: rate });
+      await updateSettings({
+        ...form,
+        exchangeRate: rate,
+        freeShippingGoal: Math.max(0, Number(form.freeShippingGoal) || 0),
+      });
       toast.success("Sistema Sincronizado ✅");
     } catch {
       toast.error("Error al guardar");
@@ -100,9 +123,9 @@ export default function AdminSettings() {
   return (
     <div className="pb-24 space-y-8 max-w-md mx-auto p-4">
 
-      {/* FINANZAS */}
-      <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white">
-        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Finanzas</h3>
+      {/* FINANZAS Y ENVÍO GRATIS */}
+      <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white space-y-5">
+        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Finanzas y Envío Gratis</h3>
         <div>
           <label className="block text-sm font-semibold text-gray-600 mb-2">Tasa de Cambio (Bs. por $1)</label>
           <input 
@@ -113,6 +136,54 @@ export default function AdminSettings() {
             placeholder="Ej: 36.50" 
             className="w-full bg-pink-50 border border-pink-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-pink-400 font-bold text-pink-600" 
           />
+        </div>
+
+        <div className="pt-3 border-t border-gray-100 space-y-3">
+          <label className="block text-sm font-semibold text-gray-600">
+            🚚 Monto Mínimo para Envío Gratis ($ USD)
+          </label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleShippingGoalChange(Math.max(0, (Number(form.freeShippingGoal) || 0) - 5))}
+              className="w-12 h-12 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-lg transition-colors flex items-center justify-center active:scale-95"
+              title="Bajar $5"
+            >
+              -5
+            </button>
+            <div className="relative flex-1">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-pink-600 text-sm">$</span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.freeShippingGoal}
+                onChange={(e) => handleShippingGoalChange(e.target.value)}
+                className="w-full bg-pink-50 border border-pink-200 rounded-2xl pl-8 pr-4 py-3 text-center text-base outline-none focus:border-pink-400 font-black text-pink-600"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => handleShippingGoalChange((Number(form.freeShippingGoal) || 0) + 5)}
+              className="w-12 h-12 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-lg transition-colors flex items-center justify-center active:scale-95"
+              title="Subir $5"
+            >
+              +5
+            </button>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 mb-1">
+              Texto de la barra superior (arriba del Header)
+            </label>
+            <input
+              type="text"
+              value={form.announcementText}
+              onChange={(e) => setForm({ ...form, announcementText: e.target.value })}
+              placeholder="🚚 Envíos gratis por MRW a partir de $50"
+              className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-xs font-semibold text-gray-700 outline-none focus:border-pink-300"
+            />
+          </div>
         </div>
       </div>
 

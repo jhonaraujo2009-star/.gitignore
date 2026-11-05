@@ -9,6 +9,7 @@ export default function AdminInterface() {
   const [form, setForm] = useState({
     appName: settings.appName || "Luckathys Shop",
     appShortName: settings.appShortName || "Luckathys",
+    freeShippingGoal: settings.freeShippingGoal ?? 50,
     announcementText: settings.announcementText || "",
     heroTitle: settings.heroTitle || "",
     heroDescription: settings.heroDescription || "",
@@ -28,6 +29,7 @@ export default function AdminInterface() {
       setForm({
         appName: settings.appName || "Luckathys Shop",
         appShortName: settings.appShortName || "Luckathys",
+        freeShippingGoal: settings.freeShippingGoal ?? 50,
         announcementText: settings.announcementText || "",
         heroTitle: settings.heroTitle || "",
         heroDescription: settings.heroDescription || "",
@@ -37,6 +39,21 @@ export default function AdminInterface() {
       });
     }
   }, [loading, settings]);
+
+  const handleShippingGoalChange = (newGoalValue) => {
+    const numericGoal = Math.max(0, Number(newGoalValue) || 0);
+    setForm((prev) => {
+      const currentText = prev.announcementText || "🚚 Envíos gratis por MRW a partir de $50";
+      const updatedText = /\$\d+(\.\d+)?/.test(currentText)
+        ? currentText.replace(/\$\d+(\.\d+)?/, `$${numericGoal}`)
+        : `🚚 Envíos gratis por MRW a partir de $${numericGoal}`;
+      return {
+        ...prev,
+        freeShippingGoal: numericGoal,
+        announcementText: updatedText,
+      };
+    });
+  };
 
   // 1. Subida de Foto de Perfil (Banner circular)
   const handleProfileImage = async (e) => {
@@ -416,12 +433,48 @@ export default function AdminInterface() {
         </div>
       </div>
 
-      {/* 🌟 4. TEXTOS DE LA TIENDA 🌟 */}
+      {/* 🌟 4. TEXTOS DE LA TIENDA Y ENVÍO GRATIS 🌟 */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
-        <h3 className="font-bold text-gray-800">Textos de la tienda</h3>
+        <h3 className="font-bold text-gray-800">Cintillo de Envío Gratis y Textos</h3>
+
+        <div className="bg-pink-50/50 border border-pink-100 rounded-2xl p-4 space-y-3">
+          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+            🚚 Monto Mínimo para Envío Gratis ($ USD)
+          </label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleShippingGoalChange(Math.max(0, (Number(form.freeShippingGoal) || 0) - 5))}
+              className="w-11 h-11 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 font-black text-base transition-colors flex items-center justify-center active:scale-95 shadow-sm"
+            >
+              -5
+            </button>
+            <div className="relative flex-1">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-pink-600 text-sm">$</span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.freeShippingGoal}
+                onChange={(e) => handleShippingGoalChange(e.target.value)}
+                className="w-full bg-white border border-pink-200 rounded-xl pl-8 pr-4 py-2.5 text-center text-sm font-black text-pink-600 outline-none focus:border-pink-400"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => handleShippingGoalChange((Number(form.freeShippingGoal) || 0) + 5)}
+              className="w-11 h-11 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 font-black text-base transition-colors flex items-center justify-center active:scale-95 shadow-sm"
+            >
+              +5
+            </button>
+          </div>
+          <span className="text-[11px] text-gray-500 block">
+            Al subir o bajar el monto aquí, se actualiza tanto el cintillo superior del Header como la barra de progreso dentro del carrito de compras.
+          </span>
+        </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-600 mb-1">Cintillo promocional</label>
+          <label className="block text-sm font-semibold text-gray-600 mb-1">Cintillo promocional (Arriba del Header)</label>
           <input
             value={form.announcementText}
             onChange={(e) => setForm({ ...form, announcementText: e.target.value })}
