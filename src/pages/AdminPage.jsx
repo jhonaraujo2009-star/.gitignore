@@ -16,6 +16,8 @@ import AdminInbox from "../components/admin/AdminInbox";
 import AdminPayments from "../components/admin/AdminPayments";
 import AdminControl from "../components/admin/AdminControl";
 import AdminInvoice from "../components/admin/AdminInvoice";
+import AdminLogistics from "../components/admin/AdminLogistics";
+import AdminBackups from "../components/admin/AdminBackups";
 
 const NAV_ITEMS = [
   { path: "/admin", label: "⚙️ Ajustes", end: true },
@@ -26,6 +28,8 @@ const NAV_ITEMS = [
   { path: "/admin/productos", label: "📦 Productos" },
   { path: "/admin/inbox", label: "💬 Mensajería", badge: true },
   { path: "/admin/pagos", label: "🏦 Pagos" },
+  { path: "/admin/logistica", label: "🚚 Logística" },
+  { path: "/admin/respaldos", label: "💾 Respaldos BD" },
 ];
 
 export default function AdminPage() {
@@ -222,6 +226,8 @@ export default function AdminPage() {
             <Route path="productos" element={<AdminProducts />} />
             <Route path="inbox" element={<AdminInbox />} />
             <Route path="pagos" element={<AdminPayments />} />
+            <Route path="logistica" element={<AdminLogistics />} />
+            <Route path="respaldos" element={<AdminBackups />} />
           </Routes>
         </div>
       </main>

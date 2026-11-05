@@ -1,11 +1,14 @@
 node_modules/
 dist/
 uploads/
+backups/
+.wrangler/
 cloudflared.exe
 config.yml
 *.url
 .env
+.env.*
 *.log
 sync_to_r2.js
 firestore_urls_backup.json
-
+lista.txt

@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
 import { compressAndUpload } from "../../utils/cloudinaryUpload";
 
 export default function AdminSettings() {
   const { settings, loading, updateSettings, serverOnline } = useApp();
+  const navigate = useNavigate();
   
   const [form, setForm] = useState({
     exchangeRate: settings.exchangeRate || "",
@@ -195,6 +197,27 @@ export default function AdminSettings() {
         <input type="text" value={form.socialLinks.whatsapp} onChange={(e) => setForm({...form, socialLinks: {...form.socialLinks, whatsapp: e.target.value}})} placeholder="Link WhatsApp (wa.me/...)" className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm outline-none" />
         <input type="text" value={form.socialLinks.instagram} onChange={(e) => setForm({...form, socialLinks: {...form.socialLinks, instagram: e.target.value}})} placeholder="Link Instagram" className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm outline-none" />
         <input type="text" value={form.socialLinks.tiktok} onChange={(e) => setForm({...form, socialLinks: {...form.socialLinks, tiktok: e.target.value}})} placeholder="Link TikTok" className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm outline-none" />
+      </div>
+
+      {/* RESPALDOS AUTOMÁTICOS DE BASE DE DATOS */}
+      <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Base de Datos (Firebase)</h3>
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">
+            Día 1 de cada mes
+          </span>
+        </div>
+        <p className="text-xs text-gray-500 leading-relaxed">
+          Copias de seguridad automáticas el primero de cada mes y descargas bajo demanda.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/admin/respaldos")}
+          className="w-full py-3.5 rounded-2xl bg-gray-900 hover:bg-black text-white font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+        >
+          <span>💾</span>
+          <span>Ver Respaldos Disponibles</span>
+        </button>
       </div>
 
       <button onClick={handleSave} disabled={saving} className="w-full py-5 rounded-[2rem] text-white font-black uppercase tracking-[0.3em] shadow-[0_10px_40px_rgba(236,72,153,0.3)] hover:scale-[1.02] active:scale-95 transition-all" style={{ background: form.primaryColor || '#ec4899' }}>

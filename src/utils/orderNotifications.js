@@ -253,7 +253,7 @@ export async function dispatchOneSignalNotification(orderData, orderId) {
 
     const targetUrl = typeof window !== "undefined"
       ? `${window.location.origin}/admin/inbox`
-      : "https://tiendajhonaraujo.firebaseapp.com/admin/inbox";
+      : "https://lkth91ofertas.com/admin/inbox";
 
     const payload = {
       app_id: ONESIGNAL_APP_ID,
@@ -268,8 +268,8 @@ export async function dispatchOneSignalNotification(orderData, orderId) {
       },
       url: targetUrl,
       web_url: targetUrl,
-      chrome_web_badge: "https://tiendajhonaraujo.firebaseapp.com/logo192.png",
-      chrome_web_icon: "https://tiendajhonaraujo.firebaseapp.com/logo192.png",
+      chrome_web_badge: "https://lkth91ofertas.com/logo192.png",
+      chrome_web_icon: "https://lkth91ofertas.com/logo192.png",
       priority: 10
     };
 
@@ -296,7 +296,7 @@ export async function sendOneSignalTestNotification() {
   try {
     const targetUrl = typeof window !== "undefined"
       ? `${window.location.origin}/admin/inbox`
-      : "https://tiendajhonaraujo.firebaseapp.com/admin/inbox";
+      : "https://lkth91ofertas.com/admin/inbox";
 
     const payload = {
       app_id: ONESIGNAL_APP_ID,
@@ -311,8 +311,8 @@ export async function sendOneSignalTestNotification() {
       },
       url: targetUrl,
       web_url: targetUrl,
-      chrome_web_badge: "https://tiendajhonaraujo.firebaseapp.com/logo192.png",
-      chrome_web_icon: "https://tiendajhonaraujo.firebaseapp.com/logo192.png",
+      chrome_web_badge: "https://lkth91ofertas.com/logo192.png",
+      chrome_web_icon: "https://lkth91ofertas.com/logo192.png",
       priority: 10
     };
 

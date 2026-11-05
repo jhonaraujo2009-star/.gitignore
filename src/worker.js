@@ -1,11 +1,63 @@
+function applySecurityHeaders(response) {
+  const newHeaders = new Headers(response.headers);
+  newHeaders.set("X-Content-Type-Options", "nosniff");
+  newHeaders.set("X-Frame-Options", "DENY");
+  newHeaders.set("X-XSS-Protection", "1; mode=block");
+  newHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  newHeaders.set(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains; preload"
+  );
+  newHeaders.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=()"
+  );
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders,
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const decodedPath = decodeURIComponent(url.pathname).toLowerCase();
 
-    // 1. Manejo inteligente de imágenes /uploads/ desde Cloudflare R2 y Servidor Local
+    // 0. Firewall en la Nube (WAF): Bloquear escáneres de vulnerabilidades y rutas prohibidas
+    if (
+      decodedPath.includes("..") ||
+      decodedPath.startsWith("/.env") ||
+      decodedPath.startsWith("/.git") ||
+      decodedPath.startsWith("/wp-admin") ||
+      decodedPath.startsWith("/wp-login") ||
+      decodedPath.startsWith("/phpmyadmin") ||
+      decodedPath.endsWith(".php") ||
+      decodedPath.endsWith(".asp") ||
+      decodedPath.endsWith(".aspx")
+    ) {
+      return new Response(
+        JSON.stringify({ error: "Acceso bloqueado por el firewall de seguridad" }),
+        {
+          status: 403,
+          headers: {
+            "content-type": "application/json",
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "DENY",
+          },
+        }
+      );
+    }
+
+    // 1. Manejo inteligente y seguro de imágenes /uploads/ desde Cloudflare R2 y Servidor Local
     if (url.pathname.startsWith("/uploads/")) {
-      const filename = url.pathname.replace(/^\/uploads\//, "");
-      if (!filename) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      const rawFilename = url.pathname.replace(/^\/uploads\//, "");
+      const filename = rawFilename.split("/").pop();
+      if (!filename || filename.includes("..") || !/^[a-zA-Z0-9._-]+$/.test(filename)) {
         return new Response("Not Found", { status: 404 });
       }
 
@@ -40,6 +92,7 @@ export default {
       } else {
         newHeaders.set("cache-control", "no-store, no-cache, must-revalidate");
       }
+      newHeaders.set("X-Content-Type-Options", "nosniff");
 
       return new Response(res.body, {
         status: res.status,
@@ -54,7 +107,7 @@ export default {
         const localReq = new Request(targetUrl, {
           method: request.method,
           headers: request.headers,
-          body: request.body,
+          body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
           redirect: "follow",
         });
 
@@ -70,12 +123,15 @@ export default {
             }),
             {
               status: 503,
-              headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+              headers: {
+                "content-type": "application/json",
+                "X-Content-Type-Options": "nosniff",
+              },
             }
           );
         }
 
-        return localRes;
+        return applySecurityHeaders(localRes);
       } catch (err) {
         return new Response(
           JSON.stringify({
@@ -86,13 +142,17 @@ export default {
           }),
           {
             status: 503,
-            headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+            headers: {
+              "content-type": "application/json",
+              "X-Content-Type-Options": "nosniff",
+            },
           }
         );
       }
     }
 
-    // 3. Servir los archivos estáticos de la aplicación (HTML, JS, CSS)
-    return env.ASSETS.fetch(request);
+    // 3. Servir los archivos estáticos de la aplicación (HTML, JS, CSS) con cabeceras de seguridad
+    const assetRes = await env.ASSETS.fetch(request);
+    return applySecurityHeaders(assetRes);
   },
 };
