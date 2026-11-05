@@ -4,13 +4,28 @@ import { cleanPhoneForWhatsApp } from "../../utils/phoneUtils";
 function getSocialHref(social, rawValue) {
   if (!rawValue) return "";
   const val = String(rawValue).trim();
-  if (social === "whatsapp") {
-    if (val.startsWith("http://") || val.startsWith("https://")) return val;
-    if (val.startsWith("wa.me/")) return `https://${val}`;
-    const cleaned = cleanPhoneForWhatsApp(val);
-    return cleaned ? `https://wa.me/${cleaned}` : val;
+  const lower = val.toLowerCase();
+  if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+    return "#";
   }
-  if (val.startsWith("http://") || val.startsWith("https://")) return val;
+  if (social === "whatsapp") {
+    if (lower.startsWith("http://") || lower.startsWith("https://")) return val;
+    if (lower.startsWith("wa.me/")) return `https://${val}`;
+    const cleaned = cleanPhoneForWhatsApp(val);
+    return cleaned ? `https://wa.me/${cleaned}` : "#";
+  }
+  if (social === "instagram") {
+    if (lower.startsWith("http://") || lower.startsWith("https://")) return val;
+    if (lower.includes("instagram.com")) return `https://${val.replace(/^\/+/, "")}`;
+    return `https://instagram.com/${val.replace(/^@/, "")}`;
+  }
+  if (social === "tiktok") {
+    if (lower.startsWith("http://") || lower.startsWith("https://")) return val;
+    if (lower.includes("tiktok.com")) return `https://${val.replace(/^\/+/, "")}`;
+    const handle = val.replace(/^@/, "");
+    return `https://www.tiktok.com/@${handle}`;
+  }
+  if (lower.startsWith("http://") || lower.startsWith("https://")) return val;
   return `https://${val}`;
 }
 
@@ -21,7 +36,7 @@ export default function HeroBanner({ activeFilter }) {
   return (
     <section
       className={`w-full overflow-hidden transition-all duration-500 ease-in-out px-4 flex flex-col items-center justify-center 
-        ${isExpanded ? "opacity-100 py-8" : "opacity-0 py-0"}`}
+        ${isExpanded ? "opacity-100 py-8" : "opacity-0 py-0 pointer-events-none"}`}
       style={{
         maxHeight: isExpanded ? "100vh" : "0px",
         minHeight: isExpanded ? "40vh" : "0px",

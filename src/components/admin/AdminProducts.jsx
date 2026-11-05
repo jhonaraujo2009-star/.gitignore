@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, getDocs
+  collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, query, orderBy
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { useApp } from "../../context/AppContext";
@@ -25,7 +25,7 @@ function VariantManager({ variants, onChange }) {
         <button type="button" onClick={addVariant}
           className="text-xs px-3 py-1 rounded-xl font-semibold text-white"
           style={{ background: "var(--primary)" }}>
-          + Agregar_Productos
+          + Agregar Variante
         </button>
       </div>
       <div className="space-y-2">
@@ -280,14 +280,18 @@ export default function AdminProducts() {
   const [expandedSessionId, setExpandedSessionId] = useState(null);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "products"), (snap) => {
+    const unsubProducts = onSnapshot(collection(db, "products"), (snap) => {
       setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
-    getDocs(collection(db, "sessions")).then((snap) =>
-      setSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    const unsubSessions = onSnapshot(
+      query(collection(db, "sessions"), orderBy("order", "asc")),
+      (snap) => setSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     );
-    return unsub;
+    return () => {
+      unsubProducts();
+      unsubSessions();
+    };
   }, []);
 
   const deleteProduct = async (id, e) => {
@@ -339,7 +343,7 @@ export default function AdminProducts() {
           onClick={() => { setFormProduct(null); setShowForm(true); }}
           className="px-5 py-2.5 rounded-2xl text-white text-sm font-black shadow-lg hover:scale-105 transition-transform"
           style={{ background: "var(--primary)" }}>
-          + Agregar_Productos
+          + Agregar Producto
         </button>
       </div>
 

@@ -4,6 +4,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { useApp } from "../../context/AppContext";
+import { getProductPricing } from "../../utils/pricingUtils";
 import toast from "react-hot-toast";
 
 const DAYS_ES = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
@@ -14,6 +15,14 @@ function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 function formatTime(d) { return d.toLocaleTimeString("es-VE",{hour:"2-digit",minute:"2-digit",hour12:true}); }
+function escapeHtml(val) {
+  return String(val ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 export default function AdminInvoice() {
   const { bsPrice } = useApp();
@@ -53,6 +62,7 @@ export default function AdminInvoice() {
 
   // Expand products with variants into individual selectable rows
   const expandedResults = filtered.flatMap(p => {
+    const { finalPrice } = getProductPricing(p);
     if (p.variants?.length) {
       return p.variants.map(v => ({
         product: p,
@@ -61,7 +71,7 @@ export default function AdminInvoice() {
         variantStock: v.stock || 0,
         displayName: `${p.name} — ${v.label}`,
         uniqueKey: `${p.id}__${v.id}`,
-        price: p.price,
+        price: finalPrice,
         image: p.images?.[0] || "",
       }));
     }
@@ -72,7 +82,7 @@ export default function AdminInvoice() {
       variantStock: p.totalStock ?? 0,
       displayName: p.name,
       uniqueKey: p.id,
-      price: p.price,
+      price: finalPrice,
       image: p.images?.[0] || "",
     }];
   });
@@ -206,6 +216,8 @@ export default function AdminInvoice() {
 
         for (const [productId, items] of Object.entries(itemsByProduct)) {
           const { ref, data: prod } = productSnapshots[productId];
+          const totalQty = items.reduce((s, i) => s + i.qty, 0);
+          const newSalesCount = (prod.salesCount || 0) + totalQty;
 
           if (prod.variants?.length) {
             const updatedVariants = prod.variants.map(v => {
@@ -221,15 +233,16 @@ export default function AdminInvoice() {
             transaction.update(ref, {
               variants: updatedVariants,
               totalStock: newTotalStock,
+              salesCount: newSalesCount,
             });
           } else {
-            const totalQty = items.reduce((s, i) => s + i.qty, 0);
             const newStock = Math.max(0, (prod.totalStock || 0) - totalQty);
             for (const item of items) {
               stockAfterSaleMap[item.uniqueKey] = newStock;
             }
             transaction.update(ref, {
               totalStock: newStock,
+              salesCount: newSalesCount,
             });
           }
         }
@@ -263,14 +276,14 @@ export default function AdminInvoice() {
     const w = window.open("","_blank","width=400,height=600");
     if (!w) return toast.error("⚠️ El navegador bloqueó la ventana. Permite popups e intenta de nuevo.");
     const itemsHtml = sale.items?.map(i =>
-      `<tr><td style="padding:4px 0;font-size:12px">${i.name}</td><td style="text-align:center;font-size:12px">${i.qty}</td><td style="text-align:right;font-size:12px">$${i.price.toFixed(2)}</td><td style="text-align:right;font-size:12px;font-weight:700">$${(i.price*i.qty).toFixed(2)}</td></tr>`
+      `<tr><td style="padding:4px 0;font-size:12px">${escapeHtml(i.name)}</td><td style="text-align:center;font-size:12px">${Number(i.qty) || 0}</td><td style="text-align:right;font-size:12px">$${Number(i.price || 0).toFixed(2)}</td><td style="text-align:right;font-size:12px;font-weight:700">$${(Number(i.price || 0)*Number(i.qty || 0)).toFixed(2)}</td></tr>`
     ).join("") || "";
     w.document.write(`<!DOCTYPE html><html><head><title>Factura</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:20px;max-width:380px;margin:0 auto}h1{font-size:18px;text-align:center;margin-bottom:2px}table{width:100%;border-collapse:collapse}th{text-align:left;font-size:10px;text-transform:uppercase;color:#888;padding:6px 0;border-bottom:1px solid #ddd}td{border-bottom:1px solid #f0f0f0}.total-row td{border-top:2px solid #333;border-bottom:none;padding-top:8px;font-weight:900;font-size:14px}@media print{body{padding:10px}}</style></head><body>
     <h1>✨ LUCKATHYS SHOP</h1>
     <p style="text-align:center;font-size:10px;color:#888;margin-bottom:16px">FACTURA DE VENTA</p>
-    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span><b>Cliente:</b> ${sale.customerName}</span><span><b>Pago:</b> ${sale.paymentMethod}</span></div>
-    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:12px;color:#666"><span>${sale.dayOfWeek} · ${sale.date}</span><span>${sale.time}</span></div>
-    <table><thead><tr><th>Producto</th><th style="text-align:center">Cant</th><th style="text-align:right">P.Unit</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsHtml}<tr class="total-row"><td colspan="3">TOTAL</td><td style="text-align:right;font-size:16px">$${sale.total?.toFixed(2)}</td></tr><tr><td colspan="3" style="font-size:11px;color:#888;padding-top:2px">Bs.</td><td style="text-align:right;font-size:11px;color:#888">${bsPrice(sale.total||0)}</td></tr></tbody></table>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span><b>Cliente:</b> ${escapeHtml(sale.customerName)}</span><span><b>Pago:</b> ${escapeHtml(sale.paymentMethod)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:12px;color:#666"><span>${escapeHtml(sale.dayOfWeek)} · ${escapeHtml(sale.date)}</span><span>${escapeHtml(sale.time)}</span></div>
+    <table><thead><tr><th>Producto</th><th style="text-align:center">Cant</th><th style="text-align:right">P.Unit</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsHtml}<tr class="total-row"><td colspan="3">TOTAL</td><td style="text-align:right;font-size:16px">$${Number(sale.total || 0).toFixed(2)}</td></tr><tr><td colspan="3" style="font-size:11px;color:#888;padding-top:2px">Bs.</td><td style="text-align:right;font-size:11px;color:#888">${escapeHtml(bsPrice(sale.total||0))}</td></tr></tbody></table>
     <p style="text-align:center;font-size:10px;color:#aaa;margin-top:20px">¡Gracias por su compra!</p>
     <script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
     w.document.close();

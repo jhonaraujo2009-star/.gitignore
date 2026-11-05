@@ -20,22 +20,6 @@ export default function ProductCard({ product, onClick, rank }) {
   // Soporta si en tu panel admin lo llamaste 'discount' o 'offerDiscount'
   const extraDiscountPerc = Number(product.discount) || Number(product.offerDiscount) || 0; 
 
-  // Calculamos el precio real a cobrar (aplica el % de descuento extra al precio actual)
-  const finalPrice = extraDiscountPerc > 0 
-    ? rawPrice - (rawPrice * (extraDiscountPerc / 100)) 
-    : rawPrice;
-
-  // Qué precio tachamos? Si hay precio viejo, tachamos ese. Si hay descuento extra, tachamos el precio base.
-  const displayCrossedPrice = rawOldPrice > rawPrice ? rawOldPrice : (extraDiscountPerc > 0 ? rawPrice : 0);
-
-  // 🌟 CÁLCULO DE ETIQUETAS (BADGES) 🌟
-  let baseDiscountPerc = 0;
-  if (rawOldPrice > rawPrice) {
-    baseDiscountPerc = Math.round(((rawOldPrice - rawPrice) / rawOldPrice) * 100);
-  } else if (extraDiscountPerc > 0 && rawOldPrice === 0) {
-    baseDiscountPerc = extraDiscountPerc; // Si solo hay extra, se vuelve el principal
-  }
-
   // 🌟 DETECTIVE DE OFERTAS (Encuentra el tiempo sin importar cómo lo guardó el Admin) 🌟
   let endTime = product.parsedOfferEndsAt || 0;
   if (!endTime) {
@@ -48,26 +32,48 @@ export default function ProductCard({ product, onClick, rank }) {
     }
   }
 
-  const isFlashOffer = endTime > Date.now();
+  const isFlashOffer = endTime > Date.now() && (timeLeft !== "EXPIRED");
+  const isExtraDiscountActive = extraDiscountPerc > 0 && (!endTime || isFlashOffer);
+
+  // Calculamos el precio real a cobrar (aplica el % de descuento extra solo si la oferta sigue activa)
+  const finalPrice = isExtraDiscountActive
+    ? Number((rawPrice - (rawPrice * (extraDiscountPerc / 100))).toFixed(2))
+    : rawPrice;
+
+  // Qué precio tachamos? Si hay precio viejo, tachamos ese. Si hay descuento extra activo, tachamos el precio base.
+  const displayCrossedPrice = rawOldPrice > rawPrice ? rawOldPrice : (isExtraDiscountActive ? rawPrice : 0);
+
+  // 🌟 CÁLCULO DE ETIQUETAS (BADGES) 🌟
+  let baseDiscountPerc = 0;
+  if (rawOldPrice > rawPrice) {
+    baseDiscountPerc = Math.round(((rawOldPrice - rawPrice) / rawOldPrice) * 100);
+  } else if (isExtraDiscountActive && rawOldPrice === 0) {
+    baseDiscountPerc = extraDiscountPerc; // Si solo hay extra activo, se vuelve el principal
+  }
+
   const hasDiscount = (displayCrossedPrice > finalPrice) || isFlashOffer;
 
   // RELOJ EN VIVO
   useEffect(() => {
-    if (!isFlashOffer || !endTime) return;
-    const interval = setInterval(() => {
+    if (!endTime || endTime <= Date.now()) return;
+    const updateClock = () => {
       const distance = endTime - Date.now();
       if (distance <= 0) {
-        clearInterval(interval);
-        setTimeLeft(""); 
-      } else {
-        const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const s = Math.floor((distance % (1000 * 60)) / 1000);
-        setTimeLeft(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        setTimeLeft("EXPIRED");
+        return false;
       }
+      const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((distance % (1000 * 60)) / 1000);
+      setTimeLeft(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      return true;
+    };
+    updateClock();
+    const interval = setInterval(() => {
+      if (!updateClock()) clearInterval(interval);
     }, 1000);
     return () => clearInterval(interval);
-  }, [endTime, isFlashOffer]);
+  }, [endTime]);
 
   return (
     <button
@@ -90,7 +96,7 @@ export default function ProductCard({ product, onClick, rank }) {
       )}
 
       {/* 🌟 RELOJ FLOTANTE 🌟 */}
-      {isFlashOffer && timeLeft && !isSoldOut && (
+      {isFlashOffer && timeLeft && timeLeft !== "EXPIRED" && !isSoldOut && (
         <div className="absolute top-3 left-3 z-30 bg-black/80 backdrop-blur-md text-white text-[9px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-xl border border-white/20">
           <span className="animate-spin-slow">⏳</span> {timeLeft}
         </div>
@@ -124,7 +130,7 @@ export default function ProductCard({ product, onClick, rank }) {
             )}
 
             {/* Etiqueta Brillante de Descuento Extra */}
-            {extraDiscountPerc > 0 && rawOldPrice > rawPrice && (
+            {isExtraDiscountActive && rawOldPrice > rawPrice && (
               <div className="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-2 py-1 rounded-lg shadow-lg border border-white/50 animate-bounce">
                 <span className="text-[9px] font-black leading-none uppercase tracking-wider">-{extraDiscountPerc}% Extra</span>
               </div>

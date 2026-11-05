@@ -14,13 +14,20 @@ export default function ProductModal({ product, onClose }) {
   const [quantity, setQuantity] = useState(1);
 
   const [hasLiked, setHasLiked] = useState(() => {
-    const likedProducts = JSON.parse(localStorage.getItem("userLikes") || "{}");
-    return !!likedProducts[product.id];
+    try {
+      const likedProducts = JSON.parse(localStorage.getItem("userLikes") || "{}");
+      return !!likedProducts[product.id];
+    } catch {
+      return false;
+    }
   });
 
   const [likesCount, setLikesCount] = useState(product.likes || 0);
   const [isLiking, setIsLiking] = useState(false);
 
+  const galleryImages = product.images?.length > 0
+    ? product.images
+    : (product.image || product.imageUrl ? [product.image || product.imageUrl] : []);
   const variants = product.variants || [];
   const hasVariants = variants.length > 0;
   const availableStock = hasVariants
@@ -48,7 +55,12 @@ export default function ProductModal({ product, onClose }) {
     if (isLiking) return;
     setIsLiking(true);
 
-    const likedProducts = JSON.parse(localStorage.getItem("userLikes") || "{}");
+    let likedProducts = {};
+    try {
+      likedProducts = JSON.parse(localStorage.getItem("userLikes") || "{}");
+    } catch {
+      likedProducts = {};
+    }
     const productRef = doc(db, "products", product.id);
 
     if (hasLiked) {
@@ -136,9 +148,9 @@ export default function ProductModal({ product, onClose }) {
                 </div>
               )}
 
-              {product.images?.length > 0 ? (
+              {galleryImages.length > 0 ? (
                 <img 
-                  src={product.images[activeImage]} 
+                  src={galleryImages[activeImage] || galleryImages[0]} 
                   alt={product.name} 
                   className="w-full h-full object-contain" 
                 />
@@ -148,9 +160,9 @@ export default function ProductModal({ product, onClose }) {
             </div>
 
             {/* 🌟 GALERÍA DE MINIATURAS (THUMBNAILS) VIP 🌟 */}
-            {product.images?.length > 1 && (
+            {galleryImages.length > 1 && (
               <div className="flex gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide px-1">
-                {product.images.map((img, i) => (
+                {galleryImages.map((img, i) => (
                   <button 
                     key={i} 
                     onClick={() => setActiveImage(i)} 
@@ -203,7 +215,9 @@ export default function ProductModal({ product, onClose }) {
             </div>
 
             {product.description && (
-              <div className="text-sm text-gray-500 leading-relaxed font-medium bg-gray-50 p-4 rounded-2xl" dangerouslySetInnerHTML={{ __html: product.description }} />
+              <div className="text-sm text-gray-500 leading-relaxed font-medium bg-gray-50 p-4 rounded-2xl whitespace-pre-line">
+                {product.description}
+              </div>
             )}
 
             {hasVariants && (

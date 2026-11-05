@@ -114,23 +114,26 @@ export default function ProductCatalog({ activeFilter, onProductClick, onFilter 
       const pOld = Number(p.oldPrice) || 0;
       const pPrice = Number(p.price) || 0;
       const pExtra = Number(p.discount) || Number(p.offerDiscount) || 0;
-      const finalPrice = pExtra > 0 ? pPrice - (pPrice * (pExtra / 100)) : pPrice;
+      const isFlashOffer = Boolean(p.parsedOfferEndsAt && p.parsedOfferEndsAt > liveTime);
+      const isExtraActive = pExtra > 0 && (!p.parsedOfferEndsAt || isFlashOffer);
+      const finalPrice = isExtraActive ? pPrice - (pPrice * (pExtra / 100)) : pPrice;
       
-      const hasDiscount = pOld > finalPrice || pExtra > 0;
-      const isFlashOffer = p.parsedOfferEndsAt && p.parsedOfferEndsAt > liveTime;
+      const hasDiscount = pOld > finalPrice || isExtraActive;
       
       return hasDiscount || isFlashOffer;
     }).sort((a, b) => {
       const aOld = Number(a.oldPrice) || Number(a.price);
       const aPrice = Number(a.price) || 0;
       const aExtra = Number(a.discount) || Number(a.offerDiscount) || 0;
-      const aFinal = aExtra > 0 ? aPrice - (aPrice * (aExtra / 100)) : aPrice;
+      const aExtraActive = aExtra > 0 && (!a.parsedOfferEndsAt || a.parsedOfferEndsAt > liveTime);
+      const aFinal = aExtraActive ? aPrice - (aPrice * (aExtra / 100)) : aPrice;
       const ahorroA = aOld - aFinal;
 
       const bOld = Number(b.oldPrice) || Number(b.price);
       const bPrice = Number(b.price) || 0;
       const bExtra = Number(b.discount) || Number(b.offerDiscount) || 0;
-      const bFinal = bExtra > 0 ? bPrice - (bPrice * (bExtra / 100)) : bPrice;
+      const bExtraActive = bExtra > 0 && (!b.parsedOfferEndsAt || b.parsedOfferEndsAt > liveTime);
+      const bFinal = bExtraActive ? bPrice - (bPrice * (bExtra / 100)) : bPrice;
       const ahorroB = bOld - bFinal;
 
       return ahorroB - ahorroA;
@@ -138,7 +141,12 @@ export default function ProductCatalog({ activeFilter, onProductClick, onFilter 
 
   } else if (isWishlist) {
     // 🌟 LÓGICA DE EXTRACCIÓN DE FAVORITOS 🌟
-    const likedItems = JSON.parse(localStorage.getItem("userLikes") || "{}");
+    let likedItems = {};
+    try {
+      likedItems = JSON.parse(localStorage.getItem("userLikes") || "{}");
+    } catch {
+      likedItems = {};
+    }
     filtered = products.filter(p => likedItems[p.id]);
 
   } else if (activeFilter && activeFilter !== "all") {

@@ -107,7 +107,8 @@ export default function AdminControl() {
       const existingImages = existingProduct?.images || [];
       let finalImages;
       if (!form.image) {
-        finalImages = existingImages;
+        // Si estaba editando y borró la foto principal, conservar solo fotos secundarias (si las hubiera)
+        finalImages = editingId ? existingImages.slice(1) : [];
       } else if (existingImages.includes(form.image)) {
         finalImages = existingImages;
       } else {

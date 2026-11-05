@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  collection, onSnapshot, query, orderBy, updateDoc, doc, runTransaction, deleteDoc
+  collection, onSnapshot, query, orderBy, updateDoc, doc, runTransaction, deleteDoc, serverTimestamp
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
+
+const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function formatTime(d) {
+  return d.toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
 import toast from "react-hot-toast";
 import { getWhatsAppUrl } from "../../utils/phoneUtils";
 import {
@@ -179,12 +187,12 @@ export default function AdminInbox() {
 
             for (const item of producto.items) {
               if (currentVariants.length > 0 && item.variant) {
-                const labelABuscar = typeof item.variant === "object" 
-                  ? item.variant.label 
-                  : item.variant;
+                const labelABuscar = String(
+                  typeof item.variant === "object" ? item.variant.label : item.variant
+                ).trim();
 
                 currentVariants = currentVariants.map(v => {
-                  if (v.label === labelABuscar) {
+                  if (String(v.label || "").trim() === labelABuscar) {
                     return { ...v, stock: Math.max(0, (v.stock || 0) - item.qty) };
                   }
                   return v;
@@ -208,10 +216,31 @@ export default function AdminInbox() {
             transaction.update(producto.ref, updateData);
           }
         }
-        
+
+        // Registrar también en el historial de ventas (invoices) para el calendario y reportes
+        const now = new Date();
+        const calculatedTotal = order.items.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.qty) || 1), 0);
+        const invoiceRef = doc(collection(db, "invoices"));
+        transaction.set(invoiceRef, {
+          items: order.items.map((i) => ({
+            productId: i.id,
+            name: i.variant ? `${i.name} — ${typeof i.variant === "object" ? i.variant.label : i.variant}` : i.name,
+            variantLabel: typeof i.variant === "object" ? i.variant.label : (i.variant || null),
+            price: Number(i.price) || 0,
+            qty: Number(i.qty) || 1,
+          })),
+          total: Number(order.totalAmount ?? calculatedTotal),
+          customerName: (order.customerName || "Cliente WhatsApp").trim(),
+          paymentMethod: "WhatsApp / Pedido Web",
+          date: toDateStr(now),
+          dayOfWeek: DAYS_ES[now.getDay()],
+          time: formatTime(now),
+          createdAt: serverTimestamp(),
+        });
+
         transaction.delete(doc(db, "orders", order.id));
       });
-      toast.success(`¡Venta confirmada e inventario actualizado con éxito! ✅`);
+      toast.success(`¡Venta confirmada, factura registrada e inventario actualizado! ✅`);
     } catch (e) {
       console.error(e);
       toast.error("Error al procesar el pago");
