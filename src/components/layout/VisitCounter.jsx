@@ -69,13 +69,21 @@ export default function VisitCounter() {
         </span>
       </button>
 
-      {/* Menú Desplegable (Calendario Premium) */}
+      {/* Menú Desplegable (Calendario Premium Centrado) */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-3 w-72 bg-white/90 backdrop-blur-2xl rounded-[2rem] shadow-[0_20px_50px_rgba(236,72,153,0.15)] border border-white/60 overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="fixed left-1/2 -translate-x-1/2 top-24 w-[88vw] max-w-[310px] bg-white/95 backdrop-blur-2xl rounded-[2rem] shadow-[0_25px_60px_rgba(236,72,153,0.28)] border border-pink-100 overflow-hidden z-[100] animate-in fade-in zoom-in-95 duration-200">
           
           {/* Header del Calendario: Muestra Info del día seleccionado o Totales */}
           <div className="bg-gradient-to-br from-pink-500 to-purple-600 p-5 text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              aria-label="Cerrar calendario de visitas"
+              className="absolute top-3 right-3 z-20 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-xs font-black transition-colors active:scale-90"
+            >
+              ✕
+            </button>
             <div className="relative z-10">
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-pink-100 mb-1">
                 {hoveredDay ? `${hoveredDay} de ${monthNames[month]}` : "Visitas Históricas"}
@@ -90,7 +98,7 @@ export default function VisitCounter() {
           </div>
 
           {/* Cuerpo del Calendario */}
-          <div className="p-4 bg-white/50">
+          <div className="p-4 bg-white">
             <div className="text-center mb-3">
               <span className="text-sm font-black text-gray-800 uppercase tracking-widest">{monthNames[month]} {year}</span>
             </div>
@@ -128,6 +136,7 @@ export default function VisitCounter() {
                     key={index}
                     onMouseEnter={() => day && setHoveredDay(day)}
                     onMouseLeave={() => setHoveredDay(null)}
+                    onClick={() => day && setHoveredDay(hoveredDay === day ? null : day)}
                     className={`aspect-square flex items-center justify-center rounded-xl text-xs transition-all duration-300 cursor-default
                       ${day ? 'cursor-pointer' : ''} 
                       ${bgColor} ${textColor}
