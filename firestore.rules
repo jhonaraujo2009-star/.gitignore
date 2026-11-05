@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Función auxiliar: verifica si el usuario inició sesión como Administrador
+    function isAdmin() {
+      return request.auth != null;
+    }
+
+    // 1. PRODUCTOS: Todos pueden verlos y dar "Me gusta" (corazón), pero SOLO el Admin puede crearlos, editar precios/stock o borrarlos
+    match /products/{productId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
+    }
+
+    // 2. CONFIGURACIÓN, SESIONES, PAGOS, LOGÍSTICA Y CUPONES: Públicos para lectura en la tienda, SOLO Admin puede modificarlos
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /sessions/{sessionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /payments/{paymentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /logistics/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 3. PEDIDOS (ORDERS): Los clientes pueden CREAR pedidos al comprar, pero SOLO el Admin puede verlos, editarlos o borrarlos
+    match /orders/{orderId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // 4. PREGUNTAS: Los clientes pueden enviar preguntas y leer las públicas; SOLO Admin las administra
+    match /questions/{questionId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // 5. CONTADOR DE VISITAS: Público para lectura e incremento de visitas diarias
+    match /stats/{docId} {
+      allow read, write: if true;
+    }
+
+    // 6. FACTURAS Y REGISTRO DE RESPALDOS: 100% Privados (SOLO Admin)
+    match /invoices/{invoiceId} {
+      allow read, write: if isAdmin();
+    }
+    match /backups_meta/{backupId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
@@ -9,11 +10,21 @@ import { CartProvider } from "./context/CartContext";
 // Protegida
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 
-// Páginas
+// Página principal de la tienda (carga inmediata para máxima velocidad al cliente)
 import StorePage from "./pages/StorePage";
-import AdminPage from "./pages/AdminPage";
-import LoginPage from "./pages/LoginPage";
-import QuestionsPage from "./pages/QuestionsPage";
+
+// Páginas secundarias y Panel Admin (Code-Splitting: solo se descargan cuando se visitan)
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const QuestionsPage = lazy(() => import("./pages/QuestionsPage"));
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-10 h-10 rounded-full border-4 border-pink-200 border-t-pink-500 animate-spin" />
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -37,20 +48,22 @@ export default function App() {
                   },
                 }}
               />
-              <Routes>
-                <Route path="/" element={<StorePage />} />
-                <Route path="/preguntas" element={<QuestionsPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route
-                  path="/admin/*"
-                  element={
-                    <ProtectedRoute>
-                      <AdminPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<StorePage />} />
+                  <Route path="/preguntas" element={<QuestionsPage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route
+                    path="/admin/*"
+                    element={
+                      <ProtectedRoute>
+                        <AdminPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
             </CartProvider>
           </AppProvider>
         </AuthProvider>

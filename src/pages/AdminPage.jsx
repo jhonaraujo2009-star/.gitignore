@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Routes, Route, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../config/firebase";
@@ -7,17 +7,17 @@ import { useApp } from "../context/AppContext";
 import { notifyNewOrder, unlockAudio, shouldNotifyOrder, markOrdersAsKnown } from "../utils/orderNotifications";
 import toast from "react-hot-toast";
 
-// Admin sub-panels
-import AdminSettings from "../components/admin/AdminSettings";
-import AdminInterface from "../components/admin/AdminInterface";
-import AdminSessions from "../components/admin/AdminSessions";
-import AdminProducts from "../components/admin/AdminProducts";
-import AdminInbox from "../components/admin/AdminInbox";
-import AdminPayments from "../components/admin/AdminPayments";
-import AdminControl from "../components/admin/AdminControl";
-import AdminInvoice from "../components/admin/AdminInvoice";
-import AdminLogistics from "../components/admin/AdminLogistics";
-import AdminBackups from "../components/admin/AdminBackups";
+// Admin sub-panels (Lazy loaded para mayor velocidad)
+const AdminSettings = lazy(() => import("../components/admin/AdminSettings"));
+const AdminInterface = lazy(() => import("../components/admin/AdminInterface"));
+const AdminSessions = lazy(() => import("../components/admin/AdminSessions"));
+const AdminProducts = lazy(() => import("../components/admin/AdminProducts"));
+const AdminInbox = lazy(() => import("../components/admin/AdminInbox"));
+const AdminPayments = lazy(() => import("../components/admin/AdminPayments"));
+const AdminControl = lazy(() => import("../components/admin/AdminControl"));
+const AdminInvoice = lazy(() => import("../components/admin/AdminInvoice"));
+const AdminLogistics = lazy(() => import("../components/admin/AdminLogistics"));
+const AdminBackups = lazy(() => import("../components/admin/AdminBackups"));
 
 const NAV_ITEMS = [
   { path: "/admin", label: "⚙️ Ajustes", end: true },
@@ -217,18 +217,26 @@ export default function AdminPage() {
             </div>
           )}
 
-          <Routes>
-            <Route index element={<AdminSettings />} />
-            <Route path="control" element={<AdminControl />} />
-            <Route path="facturar" element={<AdminInvoice />} />
-            <Route path="interfaz" element={<AdminInterface />} />
-            <Route path="sesiones" element={<AdminSessions />} />
-            <Route path="productos" element={<AdminProducts />} />
-            <Route path="inbox" element={<AdminInbox />} />
-            <Route path="pagos" element={<AdminPayments />} />
-            <Route path="logistica" element={<AdminLogistics />} />
-            <Route path="respaldos" element={<AdminBackups />} />
-          </Routes>
+          <Suspense
+            fallback={
+              <div className="py-16 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-4 border-pink-200 border-t-pink-500 animate-spin" />
+              </div>
+            }
+          >
+            <Routes>
+              <Route index element={<AdminSettings />} />
+              <Route path="control" element={<AdminControl />} />
+              <Route path="facturar" element={<AdminInvoice />} />
+              <Route path="interfaz" element={<AdminInterface />} />
+              <Route path="sesiones" element={<AdminSessions />} />
+              <Route path="productos" element={<AdminProducts />} />
+              <Route path="inbox" element={<AdminInbox />} />
+              <Route path="pagos" element={<AdminPayments />} />
+              <Route path="logistica" element={<AdminLogistics />} />
+              <Route path="respaldos" element={<AdminBackups />} />
+            </Routes>
+          </Suspense>
         </div>
       </main>
     </div>
