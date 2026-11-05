@@ -133,7 +133,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "25mb" }));
 
 // Rate Limiter en memoria por IP (protección contra fuerza bruta y DDoS)
 const rateLimitMap = new Map();
@@ -605,6 +605,36 @@ app.post(
   requireAdminAuth,
   async (req, res) => {
     try {
+      // Si el Admin autenticado envía el payload completo desde su sesión de Firebase
+      if (req.body?.payload && req.body?.payload?.data) {
+        const payload = req.body.payload;
+        const safeName = path.basename(payload.filename || `${payload.id}.json`);
+        if (!safeName.startsWith("backup-") || !safeName.endsWith(".json")) {
+          return res.status(400).json({ error: "Nombre de archivo inválido" });
+        }
+        const filePath = path.join(backupsDir, safeName);
+        const jsonStr = JSON.stringify(payload, null, 2);
+        const sizeBytes = Buffer.byteLength(jsonStr, "utf8");
+        payload.sizeBytes = sizeBytes;
+        await fs.promises.writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
+
+        const meta = {
+          id: payload.id,
+          filename: safeName,
+          createdAt: payload.createdAt,
+          timestamp: payload.timestamp,
+          monthKey: payload.monthKey,
+          type: payload.type || "manual",
+          triggeredBy: req.adminUser?.email || "admin",
+          sizeBytes,
+          stats: payload.stats,
+        };
+        console.log(
+          `💾 Copia de seguridad guardada en PC: ${safeName} (${payload.stats?.totalDocuments || 0} docs, ${(sizeBytes / 1024).toFixed(1)} KB)`
+        );
+        return res.json({ ok: true, backup: meta });
+      }
+
       const backupType = req.body?.type === "mensual-automatico" ? "mensual-automatico" : "manual";
       const meta = await createDatabaseBackup(backupType, req.adminUser?.email || "admin");
       return res.json({ ok: true, backup: meta });

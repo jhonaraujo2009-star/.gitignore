@@ -110,35 +110,11 @@ export default function AdminBackups() {
     syncWithLocalServer();
   }, [syncWithLocalServer]);
 
-  // 3. Crear copia de seguridad ahora mismo
-  const handleCreateBackup = async () => {
+  // 3. Crear copia de seguridad ahora mismo (con permisos completos de Admin en Firebase)
+  const handleCreateBackup = async (backupType = "manual", silent = false) => {
     setCreating(true);
-    const toastId = toast.loading("Creando copia de seguridad de Firebase...");
+    const toastId = !silent ? toast.loading("Creando copia de seguridad de Firebase...") : null;
     try {
-      if (serverOnline) {
-        // Guardar en el servidor local (/backups) + registrar en Firestore
-        const headers = await getAdminAuthHeader();
-        const res = await fetch("/api/backups/create", {
-          method: "POST",
-          headers: {
-            ...headers,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ type: "manual" }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          toast.success(
-            `✅ Copia de seguridad guardada (${data.backup?.stats?.totalDocuments || 0} registros)`,
-            { id: toastId }
-          );
-          await syncWithLocalServer();
-          return;
-        }
-      }
-
-      // Si la PC está apagada, generar el respaldo directamente desde Firebase en el navegador
       const dNow = new Date();
       const y = dNow.getFullYear();
       const m = String(dNow.getMonth() + 1).padStart(2, "0");
@@ -172,7 +148,7 @@ export default function AdminBackups() {
         createdAt: dNow.toISOString(),
         timestamp: dNow.getTime(),
         monthKey: `${y}-${m}`,
-        type: "manual",
+        type: typeof backupType === "string" ? backupType : "manual",
         triggeredBy: auth.currentUser?.email || "admin",
         stats: {
           totalDocuments,
@@ -183,6 +159,7 @@ export default function AdminBackups() {
 
       const jsonStr = JSON.stringify(payload, null, 2);
       const sizeBytes = new Blob([jsonStr]).size;
+      payload.sizeBytes = sizeBytes;
 
       await setDoc(doc(db, "backups_meta", backupId), {
         id: backupId,
@@ -190,27 +167,55 @@ export default function AdminBackups() {
         createdAt: payload.createdAt,
         timestamp: payload.timestamp,
         monthKey: payload.monthKey,
-        type: "manual",
+        type: payload.type,
         triggeredBy: payload.triggeredBy,
         sizeBytes,
         stats: payload.stats,
       });
 
-      // Descargar copia inmediatamente al dispositivo
-      const blob = new Blob([jsonStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+      if (serverOnline) {
+        // Guardar también en el disco duro de la PC (/backups)
+        const headers = await getAdminAuthHeader();
+        const res = await fetch("/api/backups/create", {
+          method: "POST",
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ payload }),
+        });
 
-      toast.success(
-        `✅ Copia de seguridad creada y descargada (${totalDocuments} registros)`,
-        { id: toastId }
-      );
+        if (res.ok) {
+          if (!silent) {
+            toast.success(
+              `✅ Copia de seguridad guardada en PC y Firebase (${totalDocuments} registros)`,
+              { id: toastId }
+            );
+          }
+          await syncWithLocalServer();
+          return;
+        }
+      }
+
+      // Si la PC está apagada, descargar copia inmediatamente al dispositivo
+      if (!silent) {
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        toast.success(
+          `✅ Copia de seguridad creada y descargada (${totalDocuments} registros)`,
+          { id: toastId }
+        );
+      }
     } catch (err) {
-      toast.error(err.message || "Error al crear copia de seguridad", { id: toastId });
+      if (!silent) {
+        toast.error(err.message || "Error al crear copia de seguridad", { id: toastId });
+      }
     } finally {
       setCreating(false);
     }
@@ -305,7 +310,7 @@ export default function AdminBackups() {
           </div>
 
           <button
-            onClick={handleCreateBackup}
+            onClick={() => handleCreateBackup("manual")}
             disabled={creating}
             className="px-5 py-3.5 rounded-2xl text-white font-black text-xs uppercase tracking-wider shadow-lg hover:opacity-95 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 flex-shrink-0"
             style={{ background: "var(--primary)" }}
